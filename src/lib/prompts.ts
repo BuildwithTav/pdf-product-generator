@@ -216,3 +216,90 @@ export function sectionsToSkeleton(sections: Section[]): SkeletonSectionInput[] 
     .sort((a, b) => a.order_index - b.order_index)
     .map((s) => ({ title: s.title, summary: s.summary }));
 }
+
+// ---------------------------------------------------------------------------
+// Niche/product idea discovery — for people who don't know what to make yet.
+// ---------------------------------------------------------------------------
+
+export interface DiscoveryInput {
+  background: string;
+  audienceHint?: string;
+  interests?: string;
+}
+
+export interface ProductIdea {
+  productName: string;
+  niche: string;
+  audience: string;
+  corePromise: string;
+  rationale: string;
+}
+
+const IDEAS_TOOL = {
+  name: "propose_product_ideas",
+  description: "Propose several sellable digital product ideas based on what the user told us about themselves.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      ideas: {
+        type: "array" as const,
+        items: {
+          type: "object" as const,
+          properties: {
+            productName: { type: "string" as const, description: "A compelling, specific product title." },
+            niche: { type: "string" as const, description: "Short niche phrase, e.g. 'Meal planning for busy parents'." },
+            audience: {
+              type: "string" as const,
+              description: "Specific target buyer description — who exactly this is for.",
+            },
+            corePromise: {
+              type: "string" as const,
+              description: "One sentence: the concrete outcome the buyer gets.",
+            },
+            rationale: {
+              type: "string" as const,
+              description: "One sentence on why this fits what the user told us about themselves.",
+            },
+          },
+          required: ["productName", "niche", "audience", "corePromise", "rationale"],
+        },
+      },
+    },
+    required: ["ideas"],
+  },
+};
+
+export async function generateProductIdeas(input: DiscoveryInput): Promise<ProductIdea[]> {
+  const message = await anthropic().messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 2048,
+    system:
+      "You are a digital product strategist helping a complete beginner — someone with no clear " +
+      "product idea yet — figure out what sellable digital PDF product (guide, workbook, toolkit) " +
+      "they should make. Base every idea specifically on what they told us about their own " +
+      "background and experience; never propose something generic they have no credibility to " +
+      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics.",
+    messages: [
+      {
+        role: "user",
+        content: `What this person told us about themselves:
+
+Background / skills / story: ${input.background}
+Who they want to help: ${input.audienceHint?.trim() || "not specified — infer a good fit from their background"}
+Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}
+
+Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
+      },
+    ],
+    tools: [IDEAS_TOOL],
+    tool_choice: { type: "tool", name: "propose_product_ideas" },
+  });
+
+  const toolUse = message.content.find((b) => b.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return product ideas.");
+  }
+
+  const parsed = toolUse.input as { ideas: ProductIdea[] };
+  return parsed.ideas;
+}
