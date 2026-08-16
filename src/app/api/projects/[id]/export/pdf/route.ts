@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
 import { buildDocumentHtml, type RenderableProject } from "@/lib/pdf/template";
 import { renderHtmlToPdf } from "@/lib/pdf/generate";
-import { searchPexelsImage } from "@/lib/pexels";
 
 export const maxDuration = 60;
 
@@ -36,11 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const coverImageUrl = await searchPexelsImage(
-      project.design_brief.coverImageQuery || `${project.niche} ${project.product_name}`
-    );
-
-    const html = buildDocumentHtml(project as RenderableProject, generatedSections, coverImageUrl);
+    const html = buildDocumentHtml(project as RenderableProject, generatedSections);
     const pdfBuffer = await renderHtmlToPdf(html);
 
     const path = `${user.id}/${id}.pdf`;

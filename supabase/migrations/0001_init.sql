@@ -1,37 +1,14 @@
 -- PDF Product Generator: initial schema
 -- Run against a fresh Supabase project (separate from any other product's project).
+--
+-- Access model: there's no login screen. Every visitor gets a private,
+-- invisible Supabase anonymous session (wired up in src/lib/supabase/middleware.ts),
+-- and RLS below scopes every row to that session's auth.uid() — nobody else
+-- can see or edit it, but there's no email/password and no profile to manage.
+-- Enable "Allow anonymous sign-ins" under Authentication > Settings in the
+-- Supabase dashboard before this will work.
 
 create extension if not exists "pgcrypto";
-
--- ---------------------------------------------------------------------------
--- Access control (MVP resolution for the "Skool has no membership API" gap):
--- admins manually add member emails here after verifying Skool membership.
--- Supabase auth still handles login (magic link), this table just gates who
--- is allowed to sign in / use the product. See README "Access model".
--- ---------------------------------------------------------------------------
-create table if not exists public.allowed_emails (
-  email text primary key,
-  added_by text,
-  note text,
-  created_at timestamptz not null default now()
-);
-
-alter table public.allowed_emails enable row level security;
--- No public policies: only accessible via service-role key (admin scripts / server routes).
-
-create table if not exists public.profiles (
-  id uuid primary key references auth.users (id) on delete cascade,
-  email text not null,
-  created_at timestamptz not null default now()
-);
-
-alter table public.profiles enable row level security;
-
-create policy "profiles: read own" on public.profiles
-  for select using (auth.uid() = id);
-
-create policy "profiles: insert own" on public.profiles
-  for insert with check (auth.uid() = id);
 
 -- ---------------------------------------------------------------------------
 -- Projects
@@ -71,8 +48,7 @@ create table if not exists public.sections (
   title text not null,
   summary text not null default '',
   content text,
-  image_query text,
-  image_url text,
+  icon text,
   status text not null default 'pending'
     check (status in ('pending', 'generating', 'generated', 'approved')),
   regenerate_count int not null default 0,

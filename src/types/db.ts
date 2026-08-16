@@ -34,7 +34,7 @@ export interface DesignBrief {
   paletteId: string;
   fontPairingId: string;
   layoutMood: LayoutMood;
-  coverImageQuery: string;
+  coverIcon: string;
   rationale?: string;
 }
 
@@ -62,8 +62,7 @@ export interface Section {
   title: string;
   summary: string;
   content: string | null;
-  image_query: string | null;
-  image_url: string | null;
+  icon: string | null;
   status: SectionStatus;
   regenerate_count: number;
   created_at: string;

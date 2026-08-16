@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import { getFontPairing, getPalette } from "@/lib/design-presets";
+import { iconSvgMarkup } from "@/lib/icons";
 import type { DesignBrief, Project, Section } from "@/types/db";
 
 marked.setOptions({ breaks: false, gfm: true });
@@ -29,7 +30,8 @@ function moodStyles(mood: DesignBrief["layoutMood"]) {
         bodySize: "12.5pt",
         lineHeight: "1.6",
         accentBar: "10px",
-        coverOverlayOpacity: "0.55",
+        coverShapeOpacity: "0.9",
+        coverIconSize: 96,
       };
     case "editorial":
       return {
@@ -38,7 +40,8 @@ function moodStyles(mood: DesignBrief["layoutMood"]) {
         bodySize: "11.5pt",
         lineHeight: "1.75",
         accentBar: "3px",
-        coverOverlayOpacity: "0.35",
+        coverShapeOpacity: "0.5",
+        coverIconSize: 56,
       };
     case "minimal":
     default:
@@ -48,7 +51,8 @@ function moodStyles(mood: DesignBrief["layoutMood"]) {
         bodySize: "11pt",
         lineHeight: "1.65",
         accentBar: "4px",
-        coverOverlayOpacity: "0.2",
+        coverShapeOpacity: "0.35",
+        coverIconSize: 64,
       };
   }
 }
@@ -57,11 +61,7 @@ export interface RenderableProject extends Project {
   design_brief: DesignBrief;
 }
 
-export function buildDocumentHtml(
-  project: RenderableProject,
-  sections: Section[],
-  coverImageUrl: string
-): string {
+export function buildDocumentHtml(project: RenderableProject, sections: Section[]): string {
   const palette = getPalette(project.design_brief.paletteId);
   const fonts = getFontPairing(project.design_brief.fontPairingId);
   const mood = moodStyles(project.design_brief.layoutMood);
@@ -70,17 +70,17 @@ export function buildDocumentHtml(
   const sectionsHtml = ordered
     .map((section, i) => {
       const bodyHtml = marked.parse(section.content || "") as string;
-      const imageBlock = section.image_url
-        ? `<img class="section-image" src="${section.image_url}" alt="" />`
+      const iconBadge = section.icon
+        ? `<span class="chapter-icon">${iconSvgMarkup(section.icon, { size: 18, color: "#fff" })}</span>`
         : "";
       return `
         <section class="chapter" id="section-${i}">
           <div class="chapter-kicker">
             <span class="chapter-number">${String(i + 1).padStart(2, "0")}</span>
             <span class="chapter-rule"></span>
+            ${iconBadge}
           </div>
           <h2>${escapeHtml(section.title)}</h2>
-          ${imageBlock}
           <div class="chapter-body">${bodyHtml}</div>
         </section>`;
     })
@@ -94,6 +94,12 @@ export function buildDocumentHtml(
         )}</span></li>`
     )
     .join("\n");
+
+  const coverIconMarkup = iconSvgMarkup(project.design_brief.coverIcon, {
+    size: mood.coverIconSize,
+    color: palette.accent,
+    strokeWidth: 1.5,
+  });
 
   return `<!doctype html>
 <html lang="en">
@@ -129,15 +135,51 @@ export function buildDocumentHtml(
   .page { padding: 56px 60px; }
   .cover {
     position: relative;
+    overflow: hidden;
     height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     padding: 64px;
     color: #fff;
-    background: linear-gradient(180deg, rgba(0,0,0,${mood.coverOverlayOpacity}) 0%, rgba(0,0,0,0.75) 100%),
-                url('${coverImageUrl}') center/cover no-repeat, var(--primary);
+    background: var(--primary);
   }
+  .cover::before {
+    content: "";
+    position: absolute;
+    top: -140px;
+    right: -140px;
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: calc(${mood.coverShapeOpacity} * 0.3);
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    bottom: -180px;
+    left: -120px;
+    width: 440px;
+    height: 440px;
+    border-radius: 50%;
+    border: 44px solid var(--secondary);
+    opacity: calc(${mood.coverShapeOpacity} * 0.35);
+  }
+  .cover-icon {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: ${mood.coverIconSize * 1.9}px;
+    height: ${mood.coverIconSize * 1.9}px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    margin-bottom: 32px;
+  }
+  .cover-content { position: relative; z-index: 1; }
   .cover-eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11pt; opacity: 0.85; margin-bottom: 18px; }
   .cover h1 { color: #fff; font-size: ${mood.headingSize}; line-height: 1.1; margin-bottom: 14px; }
   .cover .subtitle { font-size: 13pt; opacity: 0.92; max-width: 32em; }
@@ -156,8 +198,11 @@ export function buildDocumentHtml(
   .chapter-kicker { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .chapter-number { font-family: var(--font-heading); color: var(--accent); font-size: 14pt; font-weight: 700; }
   .chapter-rule { flex: 1; height: var(--accent-bar); background: var(--accent); border-radius: 4px; max-width: 120px; }
+  .chapter-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px; background: var(--accent); flex-shrink: 0;
+  }
   .chapter h2 { font-size: ${mood.sectionHeadingSize}; margin-bottom: 20px; }
-  .section-image { width: 100%; max-height: 280px; object-fit: cover; border-radius: 8px; margin-bottom: 24px; }
   .chapter-body p { margin: 0 0 1em; }
   .chapter-body ul, .chapter-body ol { margin: 0 0 1em; padding-left: 1.4em; }
   .chapter-body li { margin-bottom: 0.4em; }
@@ -173,10 +218,13 @@ export function buildDocumentHtml(
 </head>
 <body>
   <div class="cover">
-    <div class="cover-eyebrow">${escapeHtml(project.niche)}</div>
-    <h1>${escapeHtml(project.product_name)}</h1>
-    ${project.subtitle ? `<div class="subtitle">${escapeHtml(project.subtitle)}</div>` : ""}
-    ${project.author_name ? `<div class="author">${escapeHtml(project.author_name)}</div>` : ""}
+    <div class="cover-icon">${coverIconMarkup}</div>
+    <div class="cover-content">
+      <div class="cover-eyebrow">${escapeHtml(project.niche)}</div>
+      <h1>${escapeHtml(project.product_name)}</h1>
+      ${project.subtitle ? `<div class="subtitle">${escapeHtml(project.subtitle)}</div>` : ""}
+      ${project.author_name ? `<div class="author">${escapeHtml(project.author_name)}</div>` : ""}
+    </div>
   </div>
 
   <div class="toc-page">

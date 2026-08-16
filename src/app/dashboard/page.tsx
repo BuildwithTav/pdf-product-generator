@@ -14,9 +14,6 @@ const STATUS_LABEL: Record<Project["status"], string> = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: projects } = await supabase
     .from("projects")
@@ -25,7 +22,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <TopNav email={user?.email} />
+      <TopNav />
       <main className="mx-auto max-w-4xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-neutral-900">Your products</h1>

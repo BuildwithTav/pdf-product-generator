@@ -1,5 +1,6 @@
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
+import { ICON_IDS } from "@/lib/icons";
 import type { DesignBrief, Section, SkeletonSectionInput } from "@/types/db";
 
 export interface ProjectBrief {
@@ -24,8 +25,8 @@ Requested section count: ${brief.chapterCountRequested ?? "not specified — use
 // Skeleton generation
 // ---------------------------------------------------------------------------
 
-interface SkeletonSectionWithImage extends SkeletonSectionInput {
-  imageQuery: string;
+interface SkeletonSectionWithIcon extends SkeletonSectionInput {
+  icon: string;
 }
 
 const SKELETON_TOOL = {
@@ -44,13 +45,13 @@ const SKELETON_TOOL = {
               type: "string" as const,
               description: "One sentence describing what this section covers and why it matters.",
             },
-            imageQuery: {
+            icon: {
               type: "string" as const,
-              description:
-                "A 2-4 word English search term for a real stock photo (Pexels) that fits this section's topic. Concrete and visual, not abstract.",
+              enum: [...ICON_IDS],
+              description: "Best-fit accent icon ID for this section's topic, from the given options.",
             },
           },
-          required: ["title", "summary", "imageQuery"],
+          required: ["title", "summary", "icon"],
         },
       },
     },
@@ -60,7 +61,7 @@ const SKELETON_TOOL = {
 
 export async function generateSkeleton(
   brief: ProjectBrief
-): Promise<SkeletonSectionWithImage[]> {
+): Promise<SkeletonSectionWithIcon[]> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 2048,
@@ -86,7 +87,7 @@ export async function generateSkeleton(
     throw new Error("Claude did not return a skeleton.");
   }
 
-  const input = toolUse.input as { sections: SkeletonSectionWithImage[] };
+  const input = toolUse.input as { sections: SkeletonSectionWithIcon[] };
   return input.sections;
 }
 
@@ -163,16 +164,17 @@ const DESIGN_TOOL = {
         enum: LAYOUT_MOODS.map((m) => m.id),
         description: "Best-fit overall layout mood.",
       },
-      coverImageQuery: {
+      coverIcon: {
         type: "string" as const,
-        description: "A 2-4 word English search term for a real stock photo (Pexels) for the cover page.",
+        enum: [...ICON_IDS],
+        description: "Best-fit accent icon ID for the cover page, from the given options.",
       },
       rationale: {
         type: "string" as const,
         description: "One or two sentences explaining the design choice, shown to the user.",
       },
     },
-    required: ["paletteId", "fontPairingId", "layoutMood", "coverImageQuery", "rationale"],
+    required: ["paletteId", "fontPairingId", "layoutMood", "coverIcon", "rationale"],
   },
 };
 
@@ -180,18 +182,20 @@ export async function generateDesignBrief(brief: ProjectBrief): Promise<DesignBr
   const paletteOptions = PALETTES.map((p) => `- ${p.id}: ${p.name}`).join("\n");
   const fontOptions = FONT_PAIRINGS.map((f) => `- ${f.id}: ${f.name}`).join("\n");
   const moodOptions = LAYOUT_MOODS.map((m) => `- ${m.id}: ${m.description}`).join("\n");
+  const iconOptions = ICON_IDS.join(", ");
 
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 1024,
     system:
       "You are a book cover / brand designer choosing a design direction for a digital product PDF. " +
-      "You must pick only from the curated palette, font pairing, and layout mood options given — never " +
-      "invent new ones.",
+      "There is no photography — the design relies entirely on color, typography, a single accent " +
+      "icon, and CSS/SVG shapes. You must pick only from the curated palette, font pairing, layout " +
+      "mood, and icon options given — never invent new ones.",
     messages: [
       {
         role: "user",
-        content: `Product brief:\n${briefBlock(brief)}\n\nAvailable palettes:\n${paletteOptions}\n\nAvailable font pairings:\n${fontOptions}\n\nAvailable layout moods:\n${moodOptions}\n\nPick the best combination for this product.`,
+        content: `Product brief:\n${briefBlock(brief)}\n\nAvailable palettes:\n${paletteOptions}\n\nAvailable font pairings:\n${fontOptions}\n\nAvailable layout moods:\n${moodOptions}\n\nAvailable icons:\n${iconOptions}\n\nPick the best combination for this product.`,
       },
     ],
     tools: [DESIGN_TOOL],

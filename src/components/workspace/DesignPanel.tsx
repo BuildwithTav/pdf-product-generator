@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Wand2 } from "lucide-react";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
+import { ICON_COMPONENTS, ICON_IDS } from "@/lib/icons";
 import type { DesignBrief, Project } from "@/types/db";
 
 export function DesignPanel({
@@ -118,6 +119,30 @@ export function DesignPanel({
                 {m.name}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-xs font-medium text-neutral-500">Cover icon</span>
+          <div className="flex flex-wrap gap-2">
+            {ICON_IDS.map((id) => {
+              const Icon = ICON_COMPONENTS[id];
+              const selected = designBrief?.coverIcon === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => override({ coverIcon: id })}
+                  title={id}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md border ${
+                    selected
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

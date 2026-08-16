@@ -14,11 +14,9 @@ type Tab = "outline" | "write" | "export";
 export function ProjectWorkspace({
   initialProject,
   initialSections,
-  userEmail,
 }: {
   initialProject: Project;
   initialSections: Section[];
-  userEmail?: string;
 }) {
   const [project, setProject] = useState(initialProject);
   const [sections, setSections] = useState(initialSections);
@@ -33,7 +31,7 @@ export function ProjectWorkspace({
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <TopNav email={userEmail} />
+      <TopNav />
       <main className="mx-auto max-w-6xl px-6 py-8">
         <div className="mb-6">
           <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">

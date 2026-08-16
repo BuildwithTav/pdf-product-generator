@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
 import { generateSectionContent, sectionsToSkeleton } from "@/lib/prompts";
-import { searchPexelsImage } from "@/lib/pexels";
 import { MAX_REGENERATIONS_PER_SECTION } from "@/lib/anthropic";
 import type { Section } from "@/types/db";
 
@@ -47,31 +46,25 @@ export async function POST(
   await supabase.from("sections").update({ status: "generating" }).eq("id", sectionId);
 
   try {
-    const [content, imageUrl] = await Promise.all([
-      generateSectionContent({
-        brief: {
-          productName: project.product_name,
-          niche: project.niche,
-          audience: project.audience,
-          corePromise: project.core_promise,
-          toneReference: project.tone_reference,
-          chapterCountRequested: project.chapter_count_requested,
-        },
-        fullSkeleton: sectionsToSkeleton(allSections as Section[]),
-        section: { title: section.title, summary: section.summary },
-        sectionIndex: section.order_index,
-        regenerationNote: parsed.data.instruction,
-      }),
-      section.image_url
-        ? Promise.resolve(section.image_url)
-        : searchPexelsImage(section.image_query || `${project.niche} ${section.title}`),
-    ]);
+    const content = await generateSectionContent({
+      brief: {
+        productName: project.product_name,
+        niche: project.niche,
+        audience: project.audience,
+        corePromise: project.core_promise,
+        toneReference: project.tone_reference,
+        chapterCountRequested: project.chapter_count_requested,
+      },
+      fullSkeleton: sectionsToSkeleton(allSections as Section[]),
+      section: { title: section.title, summary: section.summary },
+      sectionIndex: section.order_index,
+      regenerationNote: parsed.data.instruction,
+    });
 
     const { data: updated, error: updateError } = await supabase
       .from("sections")
       .update({
         content,
-        image_url: imageUrl,
         status: "generated",
         regenerate_count: isRegeneration ? section.regenerate_count + 1 : section.regenerate_count,
       })

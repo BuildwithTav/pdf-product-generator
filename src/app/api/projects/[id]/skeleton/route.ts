@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           order_index: i,
           title: s.title,
           summary: s.summary,
-          image_query: s.imageQuery,
+          icon: s.icon,
           status: "pending" as const,
         }))
       )

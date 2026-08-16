@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
 import { generateDesignBrief } from "@/lib/prompts";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
+import { ICON_IDS } from "@/lib/icons";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,7 +46,7 @@ const PatchSchema = z.object({
   paletteId: z.enum(PALETTES.map((p) => p.id) as [string, ...string[]]).optional(),
   fontPairingId: z.enum(FONT_PAIRINGS.map((f) => f.id) as [string, ...string[]]).optional(),
   layoutMood: z.enum(LAYOUT_MOODS.map((m) => m.id) as [string, ...string[]]).optional(),
-  coverImageQuery: z.string().trim().min(1).max(100).optional(),
+  coverIcon: z.enum(ICON_IDS).optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
