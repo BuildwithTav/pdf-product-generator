@@ -233,6 +233,7 @@ export interface ProductIdea {
   audience: string;
   corePromise: string;
   rationale: string;
+  icon: string;
 }
 
 const IDEAS_TOOL = {
@@ -260,8 +261,13 @@ const IDEAS_TOOL = {
               type: "string" as const,
               description: "One sentence on why this fits what the user told us about themselves.",
             },
+            icon: {
+              type: "string" as const,
+              enum: [...ICON_IDS],
+              description: "Best-fit accent icon ID for this idea, from the given options.",
+            },
           },
-          required: ["productName", "niche", "audience", "corePromise", "rationale"],
+          required: ["productName", "niche", "audience", "corePromise", "rationale", "icon"],
         },
       },
     },
