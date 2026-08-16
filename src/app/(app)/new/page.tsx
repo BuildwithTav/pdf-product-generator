@@ -2,233 +2,275 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
-import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { Button } from "@/components/ui/Button";
+import { PathSelector } from "@/components/discovery/PathSelector";
+import { DiscoveryForm, type DiscoveryAnswers } from "@/components/discovery/DiscoveryForm";
+import { OpportunityCard } from "@/components/discovery/OpportunityCard";
+import { FastTrackWizard, type FastTrackAnswers } from "@/components/discovery/FastTrackWizard";
+import { BlueprintEditor, type BlueprintDraft } from "@/components/discovery/BlueprintEditor";
+import type { BusinessProfile, EntryPath, Project } from "@/types/db";
+import type { ProductIdea } from "@/lib/prompts";
 
-interface FormState {
-  productName: string;
-  niche: string;
-  audience: string;
-  corePromise: string;
-  toneReference: string;
-  chapterCountRequested: string;
-}
-
-type FieldKey = keyof FormState;
-
-interface StepConfig {
-  key: FieldKey;
-  eyebrow: string;
-  title: React.ReactNode;
-  subtitle: string;
-  placeholder: string;
-  type: "text" | "textarea" | "number";
-  required: boolean;
-}
-
-const STEPS: StepConfig[] = [
-  {
-    key: "productName",
-    eyebrow: "Step 1",
-    title: (
-      <>
-        What&apos;s your product <em className="italic text-app-accent">called?</em>
-      </>
-    ),
-    subtitle: "The title your buyer sees on the cover.",
-    placeholder: "e.g. The 30-Day Content Batching Playbook",
-    type: "text",
-    required: true,
-  },
-  {
-    key: "niche",
-    eyebrow: "Step 2",
-    title: (
-      <>
-        What niche is this <em className="italic text-app-accent">for?</em>
-      </>
-    ),
-    subtitle: "A short phrase is enough — Claude uses this to steer everything else.",
-    placeholder: "e.g. Social media growth for coaches",
-    type: "text",
-    required: true,
-  },
-  {
-    key: "audience",
-    eyebrow: "Step 3",
-    title: (
-      <>
-        Who&apos;s the <em className="italic text-app-accent">buyer?</em>
-      </>
-    ),
-    subtitle: "Be specific — the more real this person feels, the sharper the writing.",
-    placeholder: "e.g. Solo coaches with under 5k followers who feel invisible online",
-    type: "text",
-    required: true,
-  },
-  {
-    key: "corePromise",
-    eyebrow: "Step 4",
-    title: (
-      <>
-        What will they <em className="italic text-app-accent">walk away with?</em>
-      </>
-    ),
-    subtitle: "The core promise or outcome this product delivers.",
-    placeholder: "What will the buyer be able to do or achieve after using this?",
-    type: "textarea",
-    required: true,
-  },
-  {
-    key: "toneReference",
-    eyebrow: "Step 5 · Optional",
-    title: (
-      <>
-        Any tone you want <em className="italic text-app-accent">matched?</em>
-      </>
-    ),
-    subtitle: "Skip this if you're not sure — Claude will pick a tone that fits your niche.",
-    placeholder: "e.g. Warm and direct, like talking to a smart friend",
-    type: "text",
-    required: false,
-  },
-  {
-    key: "chapterCountRequested",
-    eyebrow: "Step 6 · Optional",
-    title: (
-      <>
-        How many chapters or <em className="italic text-app-accent">modules?</em>
-      </>
-    ),
-    subtitle: "Leave blank and Claude will decide based on scope.",
-    placeholder: "e.g. 7",
-    type: "number",
-    required: false,
-  },
-];
+type Stage = "path" | "fast_track" | "discovery" | "opportunity" | "blueprint";
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const [stepIndex, setStepIndex] = useState(0);
-  const [form, setForm] = useState<FormState>({
-    productName: "",
-    niche: "",
-    audience: "",
-    corePromise: "",
-    toneReference: "",
-    chapterCountRequested: "",
-  });
+  const [stage, setStage] = useState<Stage>("path");
+  const [discoveryMode, setDiscoveryMode] = useState<"discover" | "build">("discover");
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
+  const [discoveryAnswers, setDiscoveryAnswers] = useState<DiscoveryAnswers | null>(null);
+  const [ideas, setIdeas] = useState<ProductIdea[]>([]);
+  const [ideasVersion, setIdeasVersion] = useState(0);
+
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [blueprintDraft, setBlueprintDraft] = useState<BlueprintDraft | null>(null);
+  const [recommendedLength, setRecommendedLength] = useState("");
+  const [contentsPreview, setContentsPreview] = useState<string[]>([]);
+
   const [submitting, setSubmitting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [error, setError] = useState("");
 
-  const step = STEPS[stepIndex];
-  const isLastStep = stepIndex === STEPS.length - 1;
-  const canAdvance = !step.required || form[step.key].trim().length > 0;
-
-  function update(value: string) {
-    setForm((f) => ({ ...f, [step.key]: value }));
-  }
-
-  function goNext() {
-    if (!canAdvance) return;
-    if (isLastStep) {
-      void handleSubmit();
-    } else {
-      setStepIndex((i) => i + 1);
-    }
-  }
-
-  function goBack() {
+  async function selectPath(path: EntryPath) {
     setError("");
-    setStepIndex((i) => Math.max(0, i - 1));
-  }
-
-  async function handleSubmit() {
-    setSubmitting(true);
-    setError("");
-
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productName: form.productName,
-        niche: form.niche,
-        audience: form.audience,
-        corePromise: form.corePromise,
-        toneReference: form.toneReference || undefined,
-        chapterCountRequested: form.chapterCountRequested
-          ? Number(form.chapterCountRequested)
-          : undefined,
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong.");
-      setSubmitting(false);
+    if (path === "fast_track") {
+      setStage("fast_track");
       return;
     }
+    setDiscoveryMode(path);
+    setStage("discovery");
+    try {
+      const res = await fetch("/api/business-profile");
+      const data = await res.json();
+      if (res.ok) setBusinessProfile(data.profile);
+    } catch {
+      // Pre-fill is a nicety, not required — ignore failures.
+    }
+  }
 
-    router.push(`/project/${data.project.id}`);
+  async function submitDiscovery(answers: DiscoveryAnswers) {
+    setSubmitting(true);
+    setError("");
+    setDiscoveryAnswers(answers);
+    try {
+      const res = await fetch("/api/ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          background: answers.background || answers.roughIdea,
+          audienceHint: answers.audienceHint || undefined,
+          interests: answers.interests || undefined,
+          roughIdea: discoveryMode === "build" ? answers.roughIdea : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setIdeas(data.ideas);
+      setIdeasVersion((v) => v + 1);
+      setStage("opportunity");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate ideas.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function adjustIdeas(note: string) {
+    if (!discoveryAnswers) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          background: discoveryAnswers.background || discoveryAnswers.roughIdea,
+          audienceHint: discoveryAnswers.audienceHint || undefined,
+          interests: discoveryAnswers.interests || undefined,
+          roughIdea: discoveryMode === "build" ? discoveryAnswers.roughIdea : undefined,
+          adjustmentNote: note,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setIdeas(data.ideas);
+      setIdeasVersion((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to adjust ideas.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function createProjectAndBlueprint(payload: {
+    productName: string;
+    niche: string;
+    audience: string;
+    corePromise: string;
+    problem?: string;
+    transformation?: string;
+    format?: string;
+    toneReference?: string;
+    chapterCountRequested?: number;
+    path: EntryPath;
+  }) {
+    setSubmitting(true);
+    setError("");
+    try {
+      const createRes = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error);
+      const project: Project = createData.project;
+
+      const blueprintRes = await fetch(`/api/projects/${project.id}/blueprint`, { method: "POST" });
+      const blueprintData = await blueprintRes.json();
+      if (!blueprintRes.ok) throw new Error(blueprintData.error);
+
+      applyBlueprintResponse(project.id, blueprintData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to build the blueprint.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function applyBlueprintResponse(
+    id: string,
+    data: { project: Project; recommendedLength: string; contentsPreview: string[] }
+  ) {
+    setProjectId(id);
+    setBlueprintDraft({
+      productName: data.project.product_name,
+      subtitle: data.project.subtitle ?? "",
+      audience: data.project.audience,
+      problem: data.project.problem ?? "",
+      corePromise: data.project.core_promise,
+      transformation: data.project.transformation ?? "",
+      format: data.project.format ?? "guide",
+      toneReference: data.project.tone_reference ?? "",
+      purpose: data.project.purpose ?? "",
+      ctaNextStep: data.project.cta_next_step ?? "",
+    });
+    setRecommendedLength(data.recommendedLength);
+    setContentsPreview(data.contentsPreview);
+    setStage("blueprint");
+  }
+
+  async function handleImprove() {
+    if (!projectId) return;
+    setRegenerating(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/projects/${projectId}/blueprint`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      applyBlueprintResponse(projectId, data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to improve the blueprint.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  async function handleApprove() {
+    if (!projectId || !blueprintDraft) return;
+    setApproving(true);
+    setError("");
+    try {
+      const patchRes = await fetch(`/api/projects/${projectId}/blueprint`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...blueprintDraft, blueprintApproved: true }),
+      });
+      if (!patchRes.ok) throw new Error((await patchRes.json()).error);
+
+      const skeletonRes = await fetch(`/api/projects/${projectId}/skeleton`, { method: "POST" });
+      if (!skeletonRes.ok) throw new Error((await skeletonRes.json()).error);
+
+      router.push(`/project/${projectId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to build the outline.");
+      setApproving(false);
+    }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-8 py-10">
-      <div className="w-full max-w-xl">
-        <div className="mb-8">
-          <ProgressBar step={stepIndex + 1} total={STEPS.length} />
-        </div>
+    <div className="flex min-h-screen items-center justify-center px-8 py-12">
+      <div className="w-full">
+        {stage === "path" && <PathSelector onSelect={selectPath} />}
 
-        <div className="rounded-2xl border border-app-border bg-app-surface p-10 shadow-sm">
-          <EyebrowLabel tone="accent">{step.eyebrow}</EyebrowLabel>
-          <h1 className="mb-2 mt-2 font-display text-3xl font-medium leading-tight text-app-ink">
-            {step.title}
-          </h1>
-          <p className="mb-6 text-sm text-app-muted">{step.subtitle}</p>
+        {stage === "fast_track" && (
+          <FastTrackWizard
+            submitting={submitting}
+            error={error}
+            onBack={() => setStage("path")}
+            onComplete={(answers: FastTrackAnswers) =>
+              createProjectAndBlueprint({
+                productName: answers.productName,
+                niche: answers.niche,
+                audience: answers.audience,
+                corePromise: answers.corePromise,
+                toneReference: answers.toneReference || undefined,
+                chapterCountRequested: answers.chapterCountRequested
+                  ? Number(answers.chapterCountRequested)
+                  : undefined,
+                path: "fast_track",
+              })
+            }
+          />
+        )}
 
-          {step.type === "textarea" ? (
-            <textarea
-              autoFocus
-              rows={4}
-              value={form[step.key]}
-              onChange={(e) => update(e.target.value)}
-              placeholder={step.placeholder}
-              className="w-full resize-none rounded-xl border border-app-border bg-white px-4 py-3 text-base text-app-ink outline-none transition focus:border-app-accent"
-            />
-          ) : (
-            <input
-              autoFocus
-              type={step.type}
-              min={step.type === "number" ? 1 : undefined}
-              max={step.type === "number" ? 20 : undefined}
-              value={form[step.key]}
-              onChange={(e) => update(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") goNext();
-              }}
-              placeholder={step.placeholder}
-              className="w-full rounded-xl border border-app-border bg-white px-4 py-3 text-base text-app-ink outline-none transition focus:border-app-accent"
-            />
-          )}
+        {stage === "discovery" && (
+          <DiscoveryForm
+            mode={discoveryMode}
+            initialProfile={businessProfile}
+            submitting={submitting}
+            error={error}
+            onBack={() => setStage("path")}
+            onSubmit={submitDiscovery}
+          />
+        )}
 
-          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {stage === "opportunity" && ideas.length > 0 && (
+          <OpportunityCard
+            key={ideasVersion}
+            ideas={ideas}
+            submitting={submitting}
+            error={error}
+            onBack={() => setStage("discovery")}
+            onAdjust={adjustIdeas}
+            onBuild={(idea: ProductIdea) =>
+              createProjectAndBlueprint({
+                productName: idea.productName,
+                niche: idea.niche,
+                audience: idea.audience,
+                corePromise: idea.corePromise,
+                problem: idea.problem,
+                transformation: idea.transformation,
+                format: idea.format,
+                path: discoveryMode,
+              })
+            }
+          />
+        )}
 
-          <div className="mt-8 flex items-center justify-between">
-            <Button variant="ghost" onClick={goBack} disabled={stepIndex === 0}>
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-            <Button
-              variant="primary"
-              onClick={goNext}
-              disabled={!canAdvance || submitting}
-              trailingIcon={isLastStep ? <Sparkles className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-            >
-              {submitting ? "Creating…" : isLastStep ? "Create & generate outline" : "Next"}
-            </Button>
-          </div>
-        </div>
+        {stage === "blueprint" && blueprintDraft && (
+          <BlueprintEditor
+            draft={blueprintDraft}
+            recommendedLength={recommendedLength}
+            contentsPreview={contentsPreview}
+            regenerating={regenerating}
+            approving={approving}
+            error={error}
+            onChange={setBlueprintDraft}
+            onImprove={handleImprove}
+            onApprove={handleApprove}
+          />
+        )}
       </div>
     </div>
   );

@@ -27,6 +27,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       corePromise: project.core_promise,
       toneReference: project.tone_reference,
       chapterCountRequested: project.chapter_count_requested,
+      problem: project.problem,
+      transformation: project.transformation,
+      format: project.format,
+      purpose: project.purpose,
     });
 
     const capped = skeleton.slice(0, MAX_SECTIONS);

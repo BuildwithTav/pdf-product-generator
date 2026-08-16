@@ -1,11 +1,8 @@
-export type ProjectStatus =
-  | "draft"
-  | "skeleton_ready"
-  | "generating"
-  | "ready"
-  | "exported";
+export type ProjectStatus = "idea" | "blueprint" | "writing" | "ready_to_design" | "complete";
 
 export type SectionStatus = "pending" | "generating" | "generated" | "approved";
+
+export type EntryPath = "discover" | "build" | "fast_track";
 
 export interface DesignPalette {
   id: string;
@@ -51,6 +48,13 @@ export interface Project {
   design_brief: DesignBrief | null;
   subtitle: string | null;
   author_name: string | null;
+  path: EntryPath | null;
+  problem: string | null;
+  transformation: string | null;
+  format: string | null;
+  purpose: string | null;
+  cta_next_step: string | null;
+  blueprint_approved: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -72,4 +76,12 @@ export interface Section {
 export interface SkeletonSectionInput {
   title: string;
   summary: string;
+}
+
+export interface BusinessProfile {
+  id: string;
+  background: string | null;
+  audience_hint: string | null;
+  interests: string | null;
+  updated_at: string;
 }

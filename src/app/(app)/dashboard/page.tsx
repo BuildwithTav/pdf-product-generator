@@ -2,15 +2,8 @@ import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
+import { ProjectCard } from "@/components/ProjectCard";
 import type { Project } from "@/types/db";
-
-const STATUS_LABEL: Record<Project["status"], string> = {
-  draft: "Draft",
-  skeleton_ready: "Outline ready",
-  generating: "Writing…",
-  ready: "Ready to export",
-  exported: "Exported",
-};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -43,19 +36,7 @@ export default async function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {(projects as Project[]).map((p) => (
-            <Link
-              key={p.id}
-              href={`/project/${p.id}`}
-              className="rounded-2xl border border-app-border bg-app-surface p-5 transition-all duration-150 hover:-translate-y-0.5 hover:border-app-accent/40 hover:shadow-md"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="rounded-full bg-app-surface-hover px-2.5 py-1 text-xs font-medium text-app-muted">
-                  {STATUS_LABEL[p.status]}
-                </span>
-              </div>
-              <h2 className="font-display text-lg font-medium text-app-ink">{p.product_name}</h2>
-              <p className="mt-1 text-sm text-app-muted">{p.niche}</p>
-            </Link>
+            <ProjectCard key={p.id} project={p} />
           ))}
         </div>
       )}

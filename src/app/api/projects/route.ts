@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { PRODUCT_FORMATS } from "@/lib/design-presets";
 
 const IntakeSchema = z.object({
   productName: z.string().trim().min(1).max(200),
@@ -9,6 +10,10 @@ const IntakeSchema = z.object({
   corePromise: z.string().trim().min(1).max(500),
   toneReference: z.string().trim().max(500).optional(),
   chapterCountRequested: z.number().int().min(1).max(20).optional(),
+  path: z.enum(["discover", "build", "fast_track"]).optional(),
+  problem: z.string().trim().max(500).optional(),
+  transformation: z.string().trim().max(500).optional(),
+  format: z.enum(PRODUCT_FORMATS.map((f) => f.id) as [string, ...string[]]).optional(),
 });
 
 export async function GET() {
@@ -45,7 +50,11 @@ export async function POST(request: Request) {
       core_promise: parsed.data.corePromise,
       tone_reference: parsed.data.toneReference || null,
       chapter_count_requested: parsed.data.chapterCountRequested ?? null,
-      status: "draft",
+      path: parsed.data.path ?? null,
+      problem: parsed.data.problem || null,
+      transformation: parsed.data.transformation || null,
+      format: parsed.data.format || null,
+      status: "idea",
     })
     .select("*")
     .single();

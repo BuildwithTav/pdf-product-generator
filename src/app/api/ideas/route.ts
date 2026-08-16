@@ -7,10 +7,12 @@ const IdeasSchema = z.object({
   background: z.string().trim().min(1).max(1000),
   audienceHint: z.string().trim().max(500).optional(),
   interests: z.string().trim().max(500).optional(),
+  roughIdea: z.string().trim().max(500).optional(),
+  adjustmentNote: z.string().trim().max(500).optional(),
 });
 
 export async function POST(request: Request) {
-  const { unauthorized } = await requireUser();
+  const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
 
   const body = await request.json();
@@ -21,6 +23,19 @@ export async function POST(request: Request) {
 
   try {
     const ideas = await generateProductIdeas(parsed.data);
+
+    // Seed/refresh the shared business profile so the next product's
+    // discovery flow can pre-fill from what we just learned.
+    await supabase.from("business_profiles").upsert(
+      {
+        id: user.id,
+        background: parsed.data.background,
+        audience_hint: parsed.data.audienceHint || null,
+        interests: parsed.data.interests || null,
+      },
+      { onConflict: "id" }
+    );
+
     return NextResponse.json({ ideas });
   } catch (err) {
     return errorResponse(err, "Failed to generate product ideas.");

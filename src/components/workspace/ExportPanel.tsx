@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileDown, FileText } from "lucide-react";
+import { Check, Copy, Download, FileDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Callout } from "@/components/ui/Callout";
@@ -10,10 +10,25 @@ import type { Project, Section } from "@/types/db";
 export function ExportPanel({ project, sections }: { project: Project; sections: Section[] }) {
   const [exporting, setExporting] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
   const writtenCount = sections.filter((s) => s.content).length;
   const canExport = Boolean(project.design_brief) && writtenCount > 0;
+
+  async function copyManuscript() {
+    setError("");
+    try {
+      const res = await fetch(`/api/projects/${project.id}/export/markdown`);
+      if (!res.ok) throw new Error("Failed to load the manuscript.");
+      const text = await res.text();
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to copy the manuscript.");
+    }
+  }
 
   async function exportPdf() {
     setExporting(true);
@@ -77,6 +92,15 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
           <FileText className="h-4 w-4" />
           Download Markdown (.md)
         </a>
+
+        <button
+          onClick={copyManuscript}
+          disabled={!canExport}
+          className="inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent disabled:pointer-events-none disabled:opacity-50"
+        >
+          {copied ? <Check className="h-4 w-4 text-app-mint" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Copied!" : "Copy full manuscript"}
+        </button>
       </div>
 
       {pdfUrl && (

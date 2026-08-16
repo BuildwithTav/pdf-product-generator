@@ -6,21 +6,37 @@ Supabase project, own deploy). No account, no login — open it and start.
 
 ## Core flow
 
-1. **Intake form** — product name, niche, audience, core promise, optional
-   tone reference and chapter count.
-2. **Skeleton generation** — Claude proposes chapter titles + one-line
-   summaries. Editable, reorderable, regenerable before anything is written.
-3. **Section-by-section content generation** — each section is generated
+1. **Pathway selector** — "What do you want to create?" Three entry points,
+   all converging into the same builder:
+   - **Find it for me** — a few questions about the user's background/who
+     they want to help; Claude proposes 3 product ideas (title, audience,
+     problem, transformation, format, size estimate) to pick from, ask for
+     alternatives, or adjust.
+   - **Build my idea** — same idea-proposal flow, anchored around a rough
+     concept the user already has instead of free brainstorming.
+   - **Fast track** — the original 6-question form, for users who already
+     know exactly what they're making.
+2. **Blueprint** — before anything is written, Claude produces the full
+   product strategy (subtitle, target customer, problem, promise,
+   transformation, format, tone, purpose, next-step CTA, a short contents
+   preview) for the user to review, edit, or regenerate. Nothing is written
+   until this is approved.
+3. **Skeleton generation** — Claude proposes chapter titles + one-line
+   summaries, grounded in the approved blueprint. Editable, reorderable,
+   regenerable before content is written.
+4. **Section-by-section content generation** — each section is generated
    individually via the Claude API; regenerate one section without touching
    the rest.
-4. **Design brief generation** — Claude picks a palette, font pairing, layout
+5. **Design brief generation** — Claude picks a palette, font pairing, layout
    mood, and accent icon from curated options; the user can override any of
    them via a palette picker / font dropdown / mood selector / icon picker
    (never raw color/font input, and never a photo).
-5. **Live preview** — approved/generated sections render into a styled
+6. **Live preview** — approved/generated sections render into a styled
    preview as they're written.
-6. **Export** — formatted PDF (cover, auto TOC, header/footer, page numbers)
-   and a raw `.md` file, both generated from the same source content.
+7. **Export** — formatted PDF (cover, auto TOC, header/footer, page numbers),
+   a raw `.md` file, and a one-click "copy full manuscript" — all generated
+   from the same source content, so the manuscript can be taken into Canva,
+   Docs, or another design tool.
 
 ## Stack
 
@@ -51,10 +67,18 @@ npm run dev
 
 ### Database setup
 
-Run `supabase/migrations/0001_init.sql` against a fresh Supabase project (SQL
-editor or `supabase db push`). It creates `projects`, `sections`, RLS
-policies scoping everything to `auth.uid()`, and a private `generated-pdfs`
-storage bucket.
+Run the migrations in order against a fresh Supabase project (SQL editor or
+`supabase db push`):
+
+1. `supabase/migrations/0001_init.sql` — `projects`, `sections`, RLS policies
+   scoping everything to `auth.uid()`, and a private `generated-pdfs` storage
+   bucket.
+2. `supabase/migrations/0002_product_journey.sql` — adds the `business_profiles`
+   table (the seed of shared memory across products), the Blueprint-stage
+   columns on `projects`, and remaps `status` to the 5-value pathway/journey
+   enum (`idea` / `blueprint` / `writing` / `ready_to_design` / `complete`).
+   **Run this even on a project that already has 0001 applied** — it's
+   additive and safely remaps any existing rows.
 
 Then, in the Supabase dashboard, enable **Authentication > Settings > Allow
 anonymous sign-ins** — required for the access model below.
@@ -98,26 +122,50 @@ follow-up if that becomes a problem.
 ```
 src/
   app/
-    dashboard/                   — project list
-    new/                         — intake form
-    project/[id]/                — the workspace (outline → write & design → export)
-    api/projects/...             — all generation + CRUD endpoints
+    (app)/dashboard/              — project list
+    (app)/new/                    — pathway selector → discovery/blueprint → wizard orchestrator
+    (app)/project/[id]/           — the workspace (outline → write & design → export)
+    (app)/layout.tsx              — persistent sidebar shell (project nav + current project's steps)
+    api/projects/...              — CRUD + skeleton/design-brief generation
+    api/projects/[id]/blueprint/  — blueprint generation + edits/approval
+    api/ideas/                    — product idea proposals (discovery paths)
+    api/business-profile/         — shared "what we know about you" seed
   components/
-    workspace/                   — OutlineEditor, SectionList, DesignPanel, LivePreview, ExportPanel
+    discovery/                    — PathSelector, DiscoveryForm, OpportunityCard, FastTrackWizard, BlueprintEditor
+    workspace/                    — OutlineEditor, SectionList, DesignPanel, LivePreview, ExportPanel
+    shell/                        — Sidebar, StepsContext (lets a page publish its steps into the sidebar)
+    ui/                           — Button, ChoiceCard, EyebrowLabel, Callout, ProgressBar design-system primitives
   lib/
-    supabase/                    — browser/server clients + anonymous-session middleware
-    anthropic.ts, prompts.ts     — Claude client + prompt/schema definitions
-    design-presets.ts            — curated palettes / font pairings / layout moods
-    icons.ts                     — curated Lucide accent icons (React components + inline SVG for the PDF)
+    supabase/                     — browser/server clients + anonymous-session middleware
+    anthropic.ts, prompts.ts      — Claude client + prompt/schema definitions
+    design-presets.ts             — curated palettes / font pairings / layout moods / product formats
+    icons.ts                      — curated Lucide accent icons (React components + inline SVG for the PDF)
     pdf/template.ts, pdf/generate.ts — HTML document template + Puppeteer render
-    markdown.ts                  — raw .md export
-supabase/migrations/0001_init.sql
+    markdown.ts                   — raw .md export (also used for "copy full manuscript")
+supabase/migrations/
 ```
+
+## Deferred to follow-up phases (not built yet)
+
+Scoped and intentionally deferred so the journey/information-architecture
+rebuild above could ship as a coherent, checkable unit:
+
+- The 3-pane manuscript editor (chapter nav + AI action toolbar — rewrite /
+  shorten / expand / add examples, etc.) replacing today's linear section
+  list.
+- Named design systems (Editorial/Minimal/Bold/Luxury/Workbook/Creator) with
+  previews, replacing the separate palette/font/mood pickers.
+- Cover image/logo/website/footer customization.
+- Dashboard thumbnails, Duplicate, Rename (Delete is built).
+- A full standalone business-profile/workspace settings UI — `business_profiles`
+  is seeded and pre-fills discovery today, but there's no dedicated page to
+  view/edit it yet.
+- The persistent "Brain" chat/buddy feature — reserved nav slot exists in the
+  sidebar ("Soon"), `business_profiles` is a compatible foundation for it.
 
 ## What's deliberately not built (v1)
 
 - No Canva API integration
-- No voice-profile trainer, niche-discovery tool, social post generator
 - No fixed template picker — design is generated per PDF from the curated
   option sets above, not chosen from a preset library
 - No stock photography — icons + CSS/SVG shapes carry the visual design

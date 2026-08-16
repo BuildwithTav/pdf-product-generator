@@ -1,5 +1,5 @@
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
-import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
+import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES, PRODUCT_FORMATS } from "@/lib/design-presets";
 import { ICON_IDS } from "@/lib/icons";
 import type { DesignBrief, Section, SkeletonSectionInput } from "@/types/db";
 
@@ -10,15 +10,28 @@ export interface ProjectBrief {
   corePromise: string;
   toneReference?: string | null;
   chapterCountRequested?: number | null;
+  problem?: string | null;
+  transformation?: string | null;
+  format?: string | null;
+  purpose?: string | null;
 }
 
 function briefBlock(brief: ProjectBrief) {
-  return `Product name: ${brief.productName}
-Niche: ${brief.niche}
-Target buyer / audience: ${brief.audience}
-Core promise / outcome: ${brief.corePromise}
-Tone reference: ${brief.toneReference?.trim() || "not specified — pick a tone that fits the niche and audience"}
-Requested section count: ${brief.chapterCountRequested ?? "not specified — use your judgement based on scope"}`;
+  const lines = [
+    `Product name: ${brief.productName}`,
+    `Niche: ${brief.niche}`,
+    `Target buyer / audience: ${brief.audience}`,
+    `Core promise / outcome: ${brief.corePromise}`,
+  ];
+  if (brief.problem) lines.push(`Specific problem being solved: ${brief.problem}`);
+  if (brief.transformation) lines.push(`Before → after transformation: ${brief.transformation}`);
+  if (brief.format) lines.push(`Product format: ${brief.format}`);
+  if (brief.purpose) lines.push(`Purpose of this product: ${brief.purpose}`);
+  lines.push(
+    `Tone reference: ${brief.toneReference?.trim() || "not specified — pick a tone that fits the niche and audience"}`,
+    `Requested section count: ${brief.chapterCountRequested ?? "not specified — use your judgement based on scope"}`
+  );
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +238,11 @@ export interface DiscoveryInput {
   background: string;
   audienceHint?: string;
   interests?: string;
+  // Path B: the user already has a rough idea — anchor ideas around it
+  // instead of free brainstorming from background alone.
+  roughIdea?: string;
+  // "Adjust This Idea": a free-text tweak to re-run generation with.
+  adjustmentNote?: string;
 }
 
 export interface ProductIdea {
@@ -232,9 +250,65 @@ export interface ProductIdea {
   niche: string;
   audience: string;
   corePromise: string;
+  problem: string;
+  transformation: string;
+  format: string;
+  suggestedSize: string;
   rationale: string;
   icon: string;
 }
+
+const IDEA_PROPERTIES = {
+  productName: { type: "string" as const, description: "A compelling, specific product title." },
+  niche: { type: "string" as const, description: "Short niche phrase, e.g. 'Meal planning for busy parents'." },
+  audience: {
+    type: "string" as const,
+    description: "Specific target buyer description — who exactly this is for.",
+  },
+  corePromise: {
+    type: "string" as const,
+    description: "One sentence: the concrete outcome the buyer gets.",
+  },
+  problem: {
+    type: "string" as const,
+    description: "The specific problem this product solves for that buyer.",
+  },
+  transformation: {
+    type: "string" as const,
+    description: "Before → after: what changes for the buyer, in one sentence.",
+  },
+  format: {
+    type: "string" as const,
+    enum: PRODUCT_FORMATS.map((f) => f.id),
+    description: "Best-fit product format from the given options.",
+  },
+  suggestedSize: {
+    type: "string" as const,
+    description: "A short page-count estimate, e.g. '20-30 pages'.",
+  },
+  rationale: {
+    type: "string" as const,
+    description: "One sentence on why this fits what the user told us about themselves.",
+  },
+  icon: {
+    type: "string" as const,
+    enum: [...ICON_IDS],
+    description: "Best-fit accent icon ID for this idea, from the given options.",
+  },
+};
+
+const IDEA_REQUIRED = [
+  "productName",
+  "niche",
+  "audience",
+  "corePromise",
+  "problem",
+  "transformation",
+  "format",
+  "suggestedSize",
+  "rationale",
+  "icon",
+];
 
 const IDEAS_TOOL = {
   name: "propose_product_ideas",
@@ -246,28 +320,8 @@ const IDEAS_TOOL = {
         type: "array" as const,
         items: {
           type: "object" as const,
-          properties: {
-            productName: { type: "string" as const, description: "A compelling, specific product title." },
-            niche: { type: "string" as const, description: "Short niche phrase, e.g. 'Meal planning for busy parents'." },
-            audience: {
-              type: "string" as const,
-              description: "Specific target buyer description — who exactly this is for.",
-            },
-            corePromise: {
-              type: "string" as const,
-              description: "One sentence: the concrete outcome the buyer gets.",
-            },
-            rationale: {
-              type: "string" as const,
-              description: "One sentence on why this fits what the user told us about themselves.",
-            },
-            icon: {
-              type: "string" as const,
-              enum: [...ICON_IDS],
-              description: "Best-fit accent icon ID for this idea, from the given options.",
-            },
-          },
-          required: ["productName", "niche", "audience", "corePromise", "rationale", "icon"],
+          properties: IDEA_PROPERTIES,
+          required: IDEA_REQUIRED,
         },
       },
     },
@@ -276,15 +330,24 @@ const IDEAS_TOOL = {
 };
 
 export async function generateProductIdeas(input: DiscoveryInput): Promise<ProductIdea[]> {
+  const formatOptions = PRODUCT_FORMATS.map((f) => `- ${f.id}: ${f.description}`).join("\n");
+
+  const roughIdeaLine = input.roughIdea?.trim()
+    ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}\n\nAnchor your ideas around formalizing and strengthening THIS idea rather than proposing unrelated concepts — fill in the audience, problem, transformation, and format it's missing.`
+    : "";
+  const adjustmentLine = input.adjustmentNote?.trim()
+    ? `\nThe user wants this adjusted: "${input.adjustmentNote.trim()}". Apply this to the ideas.`
+    : "";
+
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 2048,
     system:
-      "You are a digital product strategist helping a complete beginner — someone with no clear " +
-      "product idea yet — figure out what sellable digital PDF product (guide, workbook, toolkit) " +
-      "they should make. Base every idea specifically on what they told us about their own " +
+      "You are a digital product strategist helping someone figure out what sellable digital PDF " +
+      "product they should make. Base every idea specifically on what they told us about their own " +
       "background and experience; never propose something generic they have no credibility to " +
-      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics.",
+      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics.\n\n" +
+      `Available product formats:\n${formatOptions}`,
     messages: [
       {
         role: "user",
@@ -292,7 +355,7 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
 
 Background / skills / story: ${input.background}
 Who they want to help: ${input.audienceHint?.trim() || "not specified — infer a good fit from their background"}
-Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}
+Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}
 
 Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
       },
@@ -308,4 +371,88 @@ Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
 
   const parsed = toolUse.input as { ideas: ProductIdea[] };
   return parsed.ideas;
+}
+
+// ---------------------------------------------------------------------------
+// Blueprint generation — the strategy review before any outline is written.
+// ---------------------------------------------------------------------------
+
+export interface BlueprintInput {
+  productName: string;
+  niche: string;
+  audience: string;
+  corePromise: string;
+  problem?: string;
+  transformation?: string;
+  format?: string;
+}
+
+export interface Blueprint {
+  subtitle: string;
+  tone: string;
+  purpose: string;
+  ctaNextStep: string;
+  recommendedLength: string;
+  contentsPreview: string[];
+}
+
+const BLUEPRINT_TOOL = {
+  name: "propose_blueprint",
+  description: "Produce the full product strategy blueprint for review before the outline is written.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      subtitle: { type: "string" as const, description: "A one-line subtitle for the cover, under the title." },
+      tone: { type: "string" as const, description: "The writing tone to use, in a few words, e.g. 'warm and direct'." },
+      purpose: {
+        type: "string" as const,
+        description: "What this product is for in the buyer's business/life, one sentence.",
+      },
+      ctaNextStep: {
+        type: "string" as const,
+        description: "The single next action the reader should take after finishing this product.",
+      },
+      recommendedLength: {
+        type: "string" as const,
+        description: "A short page-count estimate appropriate for this format and scope, e.g. '25-35 pages'.",
+      },
+      contentsPreview: {
+        type: "array" as const,
+        items: { type: "string" as const },
+        description: "4-7 short bullet points previewing what the product will contain, in order.",
+      },
+    },
+    required: ["subtitle", "tone", "purpose", "ctaNextStep", "recommendedLength", "contentsPreview"],
+  },
+};
+
+export async function generateBlueprint(input: BlueprintInput): Promise<Blueprint> {
+  const message = await anthropic().messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 1024,
+    system:
+      "You are a digital product strategist finalizing the strategy for a product before it's written. " +
+      "Be concrete and specific to this exact product — never generic.",
+    messages: [
+      {
+        role: "user",
+        content: `Product concept:
+Title: ${input.productName}
+Niche: ${input.niche}
+Audience: ${input.audience}
+Core promise: ${input.corePromise}
+${input.problem ? `Problem: ${input.problem}\n` : ""}${input.transformation ? `Transformation: ${input.transformation}\n` : ""}${input.format ? `Format: ${input.format}\n` : ""}
+Produce the blueprint.`,
+      },
+    ],
+    tools: [BLUEPRINT_TOOL],
+    tool_choice: { type: "tool", name: "propose_blueprint" },
+  });
+
+  const toolUse = message.content.find((b) => b.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return a blueprint.");
+  }
+
+  return toolUse.input as Blueprint;
 }
