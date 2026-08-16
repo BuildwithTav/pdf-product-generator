@@ -25,8 +25,8 @@ export function LivePreview({
   const fontHref = `https://fonts.googleapis.com/css2?family=${fonts.headingGoogleFont}&family=${fonts.bodyGoogleFont}&display=swap`;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-      <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium text-neutral-500">
+    <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+      <div className="border-b border-app-border bg-app-surface-hover px-4 py-2 text-xs font-medium text-app-muted">
         Live preview
       </div>
       <link rel="stylesheet" href={fontHref} />

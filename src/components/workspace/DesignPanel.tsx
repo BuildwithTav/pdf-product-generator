@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Wand2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
 import { ICON_COMPONENTS, ICON_IDS } from "@/lib/icons";
 import type { DesignBrief, Project } from "@/types/db";
@@ -44,38 +46,42 @@ export function DesignPanel({
   }
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+    <div className="rounded-2xl border border-app-border bg-app-surface p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-neutral-900">Design brief</h3>
-        <button
+        <div>
+          <EyebrowLabel>Design brief</EyebrowLabel>
+          <h3 className="font-display text-lg font-medium text-app-ink">Cover &amp; style</h3>
+        </div>
+        <Button
+          variant="secondary"
+          className="!px-3 !py-1.5 text-xs"
           onClick={generate}
           disabled={generating}
-          className="flex items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-400 disabled:opacity-50"
+          icon={<Wand2 className="h-3.5 w-3.5" />}
         >
-          <Wand2 className="h-3.5 w-3.5" />
           {generating ? "Thinking…" : designBrief ? "Regenerate with AI" : "Generate with AI"}
-        </button>
+        </Button>
       </div>
 
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
       {designBrief?.rationale && (
-        <p className="mb-3 rounded-md bg-neutral-50 p-2.5 text-xs text-neutral-600">
+        <p className="mb-4 rounded-lg bg-app-accent-soft p-3 text-xs text-app-ink">
           {designBrief.rationale}
         </p>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-neutral-500">Palette</span>
+          <span className="mb-1.5 block text-xs font-medium text-app-muted">Palette</span>
           <div className="flex flex-wrap gap-2">
             {PALETTES.map((p) => (
               <button
                 key={p.id}
                 onClick={() => override({ paletteId: p.id })}
                 title={p.name}
-                className={`flex h-8 w-8 overflow-hidden rounded-full border-2 ${
-                  designBrief?.paletteId === p.id ? "border-neutral-900" : "border-transparent"
+                className={`flex h-8 w-8 overflow-hidden rounded-full border-2 transition-transform hover:scale-105 ${
+                  designBrief?.paletteId === p.id ? "border-app-accent" : "border-transparent"
                 }`}
               >
                 <span className="h-full w-1/2" style={{ background: p.primary }} />
@@ -86,11 +92,11 @@ export function DesignPanel({
         </div>
 
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-neutral-500">Font pairing</span>
+          <span className="mb-1.5 block text-xs font-medium text-app-muted">Font pairing</span>
           <select
             value={designBrief?.fontPairingId ?? ""}
             onChange={(e) => override({ fontPairingId: e.target.value })}
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-neutral-900"
+            className="w-full rounded-lg border border-app-border px-2.5 py-1.5 text-xs text-app-ink outline-none transition focus:border-app-accent"
           >
             <option value="" disabled>
               Choose a font pairing
@@ -104,16 +110,17 @@ export function DesignPanel({
         </div>
 
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-neutral-500">Layout mood</span>
+          <span className="mb-1.5 block text-xs font-medium text-app-muted">Layout mood</span>
           <div className="grid grid-cols-3 gap-2">
             {LAYOUT_MOODS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => override({ layoutMood: m.id })}
-                className={`rounded-md border px-2 py-1.5 text-xs font-medium ${
+                title={m.description}
+                className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition ${
                   designBrief?.layoutMood === m.id
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                    ? "border-transparent bg-app-accent text-white"
+                    : "border-app-border text-app-muted hover:border-app-accent hover:text-app-accent"
                 }`}
               >
                 {m.name}
@@ -123,7 +130,7 @@ export function DesignPanel({
         </div>
 
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-neutral-500">Cover icon</span>
+          <span className="mb-1.5 block text-xs font-medium text-app-muted">Cover icon</span>
           <div className="flex flex-wrap gap-2">
             {ICON_IDS.map((id) => {
               const Icon = ICON_COMPONENTS[id];
@@ -133,10 +140,10 @@ export function DesignPanel({
                   key={id}
                   onClick={() => override({ coverIcon: id })}
                   title={id}
-                  className={`flex h-8 w-8 items-center justify-center rounded-md border ${
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
                     selected
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                      ? "border-transparent bg-app-accent text-white"
+                      : "border-app-border text-app-muted hover:border-app-accent hover:text-app-accent"
                   }`}
                 >
                   <Icon className="h-4 w-4" />

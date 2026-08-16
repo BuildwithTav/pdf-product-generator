@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Download, FileDown, FileText } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
+import { Callout } from "@/components/ui/Callout";
 import type { Project, Section } from "@/types/db";
 
 export function ExportPanel({ project, sections }: { project: Project; sections: Section[] }) {
@@ -28,41 +31,46 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
   }
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-6">
-      <h2 className="mb-1 text-lg font-semibold text-neutral-900">Export</h2>
-      <p className="mb-5 text-sm text-neutral-500">
+    <div className="max-w-xl rounded-2xl border border-app-border bg-app-surface p-8">
+      <EyebrowLabel>Export</EyebrowLabel>
+      <h2 className="mb-2 mt-1 font-display text-2xl font-medium text-app-ink">
+        Ready to <em className="italic text-app-accent">ship it</em>
+      </h2>
+      <p className="mb-5 text-sm text-app-muted">
         Both outputs are generated from the same content — the formatted PDF for selling, the
         Markdown file for editing further in Canva, Docs, or Word.
       </p>
 
       {!canExport && (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-          {project.design_brief
-            ? "Generate at least one section's content before exporting."
-            : "Generate a design brief and at least one section's content before exporting."}
-        </p>
+        <div className="mb-4">
+          <Callout>
+            {project.design_brief
+              ? "Generate at least one section's content before exporting."
+              : "Generate a design brief and at least one section's content before exporting."}
+          </Callout>
+        </div>
       )}
 
-      <div className="mb-4 text-xs text-neutral-500">
+      <div className="mb-4 text-xs text-app-muted">
         {writtenCount} / {sections.length} sections written
       </div>
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
-        <button
+        <Button
+          variant="primary"
           onClick={exportPdf}
           disabled={!canExport || exporting}
-          className="flex items-center gap-2 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          icon={<FileDown className="h-4 w-4" />}
         >
-          <FileDown className="h-4 w-4" />
           {exporting ? "Rendering PDF…" : "Export formatted PDF"}
-        </button>
+        </Button>
 
         <a
           href={canExport ? `/api/projects/${project.id}/export/markdown` : undefined}
           aria-disabled={!canExport}
-          className={`flex items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:border-neutral-400 ${
+          className={`inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent ${
             !canExport ? "pointer-events-none opacity-50" : ""
           }`}
         >
@@ -76,7 +84,7 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
           href={pdfUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-4 flex w-fit items-center gap-2 rounded-lg bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100"
+          className="mt-4 flex w-fit items-center gap-2 rounded-full bg-app-mint-soft px-5 py-2.5 text-sm font-medium text-app-mint transition hover:brightness-95"
         >
           <Download className="h-4 w-4" /> Your PDF is ready — download it
         </a>

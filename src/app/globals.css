@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* App chrome palette — the product's own UI, fixed and always the same.
+     Not to be confused with the per-PDF DesignBrief palette Claude picks,
+     which only ever renders inside LivePreview / the exported PDF. */
+  --app-bg: #faf6ef;
+  --app-surface: #fffdf9;
+  --app-surface-hover: #f5efe1;
+  --app-ink: #241f1a;
+  --app-muted: #7a6f62;
+  --app-border: #e7ddc9;
+
+  --app-accent: #2f6f80;
+  --app-accent-hover: #255a68;
+  --app-accent-soft: #e1eef1;
+
+  --app-coral: #d97c54;
+  --app-coral-soft: #fbe7da;
+
+  --app-mint: #5c8c63;
+  --app-mint-soft: #e7f0e4;
+
+  --app-sand: #b98a3e;
+  --app-sand-soft: #f5efe1;
+
+  --app-navy: #1b2a33;
+  --app-navy-soft: #26404a;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-hover: var(--app-surface-hover);
+  --color-app-ink: var(--app-ink);
+  --color-app-muted: var(--app-muted);
+  --color-app-border: var(--app-border);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-hover: var(--app-accent-hover);
+  --color-app-accent-soft: var(--app-accent-soft);
+
+  --color-app-coral: var(--app-coral);
+  --color-app-coral-soft: var(--app-coral-soft);
+
+  --color-app-mint: var(--app-mint);
+  --color-app-mint-soft: var(--app-mint-soft);
+
+  --color-app-sand: var(--app-sand);
+  --color-app-sand-soft: var(--app-sand-soft);
+
+  --color-app-navy: var(--app-navy);
+  --color-app-navy-soft: var(--app-navy-soft);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--app-bg);
+  color: var(--app-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
