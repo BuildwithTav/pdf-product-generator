@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (signError || !signed) return errorResponse(signError);
 
-    await supabase.from("projects").update({ status: "exported" }).eq("id", id);
+    await supabase.from("projects").update({ status: "complete" }).eq("id", id);
 
     return NextResponse.json({ url: signed.signedUrl });
   } catch (err) {

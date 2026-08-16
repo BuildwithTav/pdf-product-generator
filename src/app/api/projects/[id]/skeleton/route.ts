@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (insertError) return errorResponse(insertError);
 
-    await supabase.from("projects").update({ status: "skeleton_ready" }).eq("id", id);
+    await supabase.from("projects").update({ status: "writing" }).eq("id", id);
 
     return NextResponse.json({ sections });
   } catch (err) {
