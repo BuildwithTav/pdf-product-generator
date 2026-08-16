@@ -21,11 +21,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
 
+  let ideas;
   try {
-    const ideas = await generateProductIdeas(parsed.data);
+    ideas = await generateProductIdeas(parsed.data);
+  } catch (err) {
+    return errorResponse(err, "Claude API request failed while generating product ideas.");
+  }
 
-    // Seed/refresh the shared business profile so the next product's
-    // discovery flow can pre-fill from what we just learned.
+  // Seed/refresh the shared business profile so the next product's
+  // discovery flow can pre-fill from what we just learned. Best-effort —
+  // never let a profile-save hiccup take down idea generation.
+  try {
     await supabase.from("business_profiles").upsert(
       {
         id: user.id,
@@ -35,9 +41,9 @@ export async function POST(request: Request) {
       },
       { onConflict: "id" }
     );
-
-    return NextResponse.json({ ideas });
   } catch (err) {
-    return errorResponse(err, "Failed to generate product ideas.");
+    console.error("Failed to save business profile:", err);
   }
+
+  return NextResponse.json({ ideas });
 }
