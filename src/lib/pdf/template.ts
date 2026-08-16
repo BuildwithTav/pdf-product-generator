@@ -139,8 +139,9 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    padding: 64px;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 64px 88px;
     color: #fff;
     background: var(--primary);
   }
@@ -203,17 +204,33 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     width: 34px; height: 34px; border-radius: 9px; background: var(--accent); flex-shrink: 0;
   }
   .chapter h2 { font-size: ${mood.sectionHeadingSize}; margin-bottom: 20px; }
-  .chapter-body p { margin: 0 0 1em; }
+  .chapter-body p { margin: 0 0 1em; orphans: 3; widows: 3; }
   .chapter-body ul, .chapter-body ol { margin: 0 0 1em; padding-left: 1.4em; }
   .chapter-body li { margin-bottom: 0.4em; }
   .chapter-body blockquote {
     margin: 1.4em 0; padding: 16px 20px; background: var(--surface);
     border-left: var(--accent-bar) solid var(--accent); border-radius: 6px;
     font-style: italic; color: var(--secondary);
+    break-inside: avoid;
   }
   .chapter-body blockquote p { margin: 0; }
   .chapter-body strong { color: var(--primary); }
-  .chapter-body h1, .chapter-body h2, .chapter-body h3 { font-size: 1.05em; margin-top: 1.2em; }
+  .chapter-body h1, .chapter-body h2, .chapter-body h3 {
+    font-size: 1.35em;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 1.8em;
+    margin-bottom: 0.7em;
+    padding-top: 0.9em;
+    border-top: 2px solid var(--surface);
+    break-after: avoid;
+    break-inside: avoid;
+  }
+  .chapter-body h1:first-child, .chapter-body h2:first-child, .chapter-body h3:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
 </style>
 </head>
 <body>

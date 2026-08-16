@@ -16,8 +16,13 @@ async function launchBrowser(): Promise<Browser> {
   }
 
   // Local dev: use the full `puppeteer` package, which ships its own Chromium build.
+  // --no-sandbox is required when the dev process runs as root (common in
+  // containers); harmless otherwise.
   const { default: puppeteer } = await import("puppeteer");
-  return puppeteer.launch({ headless: true }) as unknown as Promise<Browser>;
+  return puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  }) as unknown as Promise<Browser>;
 }
 
 export async function renderHtmlToPdf(html: string): Promise<Buffer> {
