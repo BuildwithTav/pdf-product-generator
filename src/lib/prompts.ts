@@ -116,6 +116,18 @@ export interface SectionGenerationContext {
   regenerationNote?: string;
 }
 
+// The whole product should land around 20-30 printed pages. ~450 words is a
+// reasonable estimate for one page of this template's body text once cover
+// and TOC (roughly 2 pages) are accounted for; spread that budget evenly
+// across sections and clamp so very short or very long outlines don't
+// produce absurd per-section targets.
+function targetWordCount(sectionCount: number): number {
+  const contentPages = 24;
+  const wordsPerPage = 450;
+  const perSection = Math.round((contentPages * wordsPerPage) / Math.max(sectionCount, 1));
+  return Math.min(1100, Math.max(300, perSection));
+}
+
 export async function generateSectionContent(ctx: SectionGenerationContext): Promise<string> {
   const outlineList = ctx.fullSkeleton
     .map((s, i) => `${i + 1}. ${s.title} — ${s.summary}`)
@@ -125,16 +137,31 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
     ? `\n\nThe user regenerated this section with this instruction: "${ctx.regenerationNote}". Follow it closely.`
     : "";
 
+  const wordTarget = targetWordCount(ctx.fullSkeleton.length);
+
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
     system:
-      "You are an expert ghostwriter producing publish-ready content for a digital product PDF aimed at " +
-      "complete beginners. Write in clean Markdown: use ## for the section heading, short paragraphs, " +
-      "bulleted/numbered lists where useful, and wrap 1-3 key takeaways in a blockquote (> ) to act as a " +
-      "callout/tip box. Do not repeat content covered by other sections. Do not include a top-level title " +
-      "for the whole book, only this section's own heading. Write only the section content, no preamble " +
-      "or meta-commentary about what you're doing.",
+      "You are an expert ghostwriter and workbook designer producing publish-ready content for a digital " +
+      "product PDF aimed at complete beginners. The whole product should read as a tight, professional " +
+      `20-30 page PDF — aim for roughly ${wordTarget} words for this section, not more. Prioritize ` +
+      "actionable substance (steps, frameworks, examples) over padding; cut generic filler before you'd " +
+      "cut a concrete example.\n\n" +
+      "Formatting rules, in clean Markdown:\n" +
+      "- Use ## for this section's own heading only (never a top-level book title), and ### for internal " +
+      "subheadings if the section has more than one distinct part.\n" +
+      "- Wrap 1-3 key takeaways per section in a blockquote (> ) as a callout/tip box.\n" +
+      "- Whenever the content is a tracker, comparison, scoring rubric, or anything with rows and columns, " +
+      "use a real Markdown table (| col | col |) — never fake columns with plain text or dashes.\n" +
+      "- Whenever the content is a checklist, a daily/weekly tracker, or any step meant to be checked off, " +
+      "use Markdown task list syntax (- [ ] item) — never plain bullet text for something meant to be " +
+      "checked off by hand.\n" +
+      "- For reflection prompts or fill-in-the-blank exercises, use a two-column table with the prompt in " +
+      "the left column and the right column left blank (a single non-breaking space) so it renders as a " +
+      "clean printable box to write in — never use underscores or blank lines for this.\n" +
+      "- Do not repeat content covered by other sections. Write only the section content, no preamble or " +
+      "meta-commentary about what you're doing.",
     messages: [
       {
         role: "user",

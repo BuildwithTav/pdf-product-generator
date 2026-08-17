@@ -131,7 +131,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     font-size: ${mood.bodySize};
     line-height: ${mood.lineHeight};
   }
-  h1, h2, h3 { font-family: var(--font-heading); color: var(--primary); margin: 0 0 0.5em; }
+  h1, h2, h3 { font-family: var(--font-heading); font-weight: 700; color: var(--primary); margin: 0 0 0.5em; }
   .page { padding: 56px 60px; }
   .cover {
     position: relative;
@@ -231,6 +231,27 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     padding-top: 0;
     border-top: none;
   }
+  .chapter-body table {
+    width: 100%; border-collapse: collapse; margin: 1.6em 0;
+    font-size: 0.92em; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 0 0 1px var(--surface);
+  }
+  .chapter-body thead { background: var(--primary); }
+  .chapter-body th { color: #fff; text-align: left; padding: 11px 16px; font-weight: 600; }
+  .chapter-body td { padding: 11px 16px; border-bottom: 1px solid var(--surface); }
+  .chapter-body tbody tr:nth-child(even) { background: var(--surface); }
+  .chapter-body tr { break-inside: avoid; }
+  .chapter-body ul:has(input[type="checkbox"]) { list-style: none; padding-left: 0; }
+  .chapter-body li:has(input[type="checkbox"]) {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 8px 0; border-bottom: 1px dashed var(--surface);
+  }
+  .chapter-body input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+    border: 2px solid var(--accent); border-radius: 5px;
+  }
+  .chapter-body input[type="checkbox"]:checked { background: var(--accent); }
 </style>
 </head>
 <body>
