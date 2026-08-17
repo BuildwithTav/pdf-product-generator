@@ -160,6 +160,12 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
       "- For reflection prompts or fill-in-the-blank exercises, use a two-column table with the prompt in " +
       "the left column and the right column left blank (a single non-breaking space) so it renders as a " +
       "clean printable box to write in — never use underscores or blank lines for this.\n" +
+      "- If this section includes a self-scored quiz, rubric, or assessment with distinct result " +
+      "categories, follow the scoring table with a short 'Your path from here' note that routes each " +
+      "category to specific chapters by name from the outline below (e.g. which chapters to read in full " +
+      "vs. skim vs. skip ahead to) — this is a static, pre-written branch the reader follows themselves, " +
+      "not something that changes automatically, so write it as direct instructions ('If you scored X, " +
+      "start with Chapter 2 before moving on').\n" +
       "- Do not repeat content covered by other sections. Write only the section content, no preamble or " +
       "meta-commentary about what you're doing.",
     messages: [
