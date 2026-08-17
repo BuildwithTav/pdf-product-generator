@@ -52,7 +52,7 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
         Ready to <em className="italic text-app-accent">ship it</em>
       </h2>
       <p className="mb-5 text-sm text-app-muted">
-        Both outputs are generated from the same content — the formatted PDF for selling, the
+        Both outputs are generated from the same content: the formatted PDF for selling, the
         Markdown file for editing further in Canva, Docs, or Word.
       </p>
 
@@ -110,7 +110,7 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
           rel="noreferrer"
           className="mt-4 flex w-fit items-center gap-2 rounded-full bg-app-mint-soft px-5 py-2.5 text-sm font-medium text-app-mint transition hover:brightness-95"
         >
-          <Download className="h-4 w-4" /> Your PDF is ready — download it
+          <Download className="h-4 w-4" /> Your PDF is ready, download it
         </a>
       )}
     </div>

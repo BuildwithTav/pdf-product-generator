@@ -45,10 +45,10 @@ export function ProjectWorkspace({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
       <div className="mb-8">
         <EyebrowLabel>{project.niche}</EyebrowLabel>
-        <h1 className="font-display text-3xl font-medium text-app-ink">{project.product_name}</h1>
+        <h1 className="font-display text-2xl font-medium text-app-ink sm:text-3xl">{project.product_name}</h1>
       </div>
 
       {tab === "outline" && (

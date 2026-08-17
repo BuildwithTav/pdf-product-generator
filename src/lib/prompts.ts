@@ -1,7 +1,18 @@
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES, PRODUCT_FORMATS } from "@/lib/design-presets";
 import { ICON_IDS } from "@/lib/icons";
+import { sanitizeGeneratedText, sanitizeGeneratedTextArray } from "@/lib/text";
 import type { DesignBrief, Section, SkeletonSectionInput } from "@/types/db";
+
+// Appended to every generation system prompt. Em dashes are stripped in code
+// as a hard guarantee, but the instruction still matters: it stops Claude
+// reaching for an en dash or run-on comma splice as a substitute, and keeps
+// general punctuation (terminal periods, colons, no doubled punctuation)
+// clean at the source instead of relying on the code-level cleanup alone.
+const PUNCTUATION_RULE =
+  "Never use an em dash (—) anywhere in your output: use a comma, period, colon, or parentheses " +
+  "instead, whichever fits the sentence. Use correct, precise punctuation throughout: proper commas, " +
+  "colons, and terminal periods; no doubled or missing punctuation; no comma splices.";
 
 export interface ProjectBrief {
   productName: string;
@@ -82,7 +93,8 @@ export async function generateSkeleton(
       "You are an expert instructional designer and ghostwriter who structures digital products " +
       "(ebooks, guides, workbooks) for beginners with no design or writing skill. You produce clear, " +
       "sellable, well-scoped outlines. Sections should build on each other logically and cover the " +
-      "promise completely without padding or redundancy.",
+      "promise completely without padding or redundancy.\n\n" +
+      PUNCTUATION_RULE,
     messages: [
       {
         role: "user",
@@ -101,7 +113,11 @@ export async function generateSkeleton(
   }
 
   const input = toolUse.input as { sections: SkeletonSectionWithIcon[] };
-  return input.sections;
+  return input.sections.map((s) => ({
+    ...s,
+    title: sanitizeGeneratedText(s.title),
+    summary: sanitizeGeneratedText(s.summary),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -168,14 +184,15 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
       "start with Chapter 2 before moving on').\n" +
       "- Any time you reference another chapter by name (including in a 'your path from here' note), " +
       "write it as a Markdown link using that chapter's exact anchor from the outline below, e.g. " +
-      "[Chapter 2: Building Trust](#section-1) — the reader can tap it to jump straight there when " +
+      "[Chapter 2: Building Trust](#section-1). The reader can tap it to jump straight there when " +
       "reading digitally, so never reference a chapter as plain unlinked text.\n" +
       "- Do not repeat content covered by other sections. Write only the section content, no preamble or " +
-      "meta-commentary about what you're doing.",
+      "meta-commentary about what you're doing.\n\n" +
+      PUNCTUATION_RULE,
     messages: [
       {
         role: "user",
-        content: `Full product brief:\n${briefBlock(ctx.brief)}\n\nFull outline (for context — do not repeat other sections' content):\n${outlineList}\n\nWrite the complete content for section ${
+        content: `Full product brief:\n${briefBlock(ctx.brief)}\n\nFull outline (for context, do not repeat other sections' content):\n${outlineList}\n\nWrite the complete content for section ${
           ctx.sectionIndex + 1
         }: "${ctx.section.title}" (${ctx.section.summary}).${regenerationInstruction}`,
       },
@@ -186,7 +203,7 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("Claude did not return section content.");
   }
-  return textBlock.text.trim();
+  return sanitizeGeneratedText(textBlock.text.trim());
 }
 
 // ---------------------------------------------------------------------------
@@ -239,9 +256,10 @@ export async function generateDesignBrief(brief: ProjectBrief): Promise<DesignBr
     max_tokens: 1024,
     system:
       "You are a book cover / brand designer choosing a design direction for a digital product PDF. " +
-      "There is no photography — the design relies entirely on color, typography, a single accent " +
+      "There is no photography: the design relies entirely on color, typography, a single accent " +
       "icon, and CSS/SVG shapes. You must pick only from the curated palette, font pairing, layout " +
-      "mood, and icon options given — never invent new ones.",
+      "mood, and icon options given, never invent new ones.\n\n" +
+      PUNCTUATION_RULE,
     messages: [
       {
         role: "user",
@@ -257,7 +275,8 @@ export async function generateDesignBrief(brief: ProjectBrief): Promise<DesignBr
     throw new Error("Claude did not return a design brief.");
   }
 
-  return toolUse.input as DesignBrief;
+  const brief_ = toolUse.input as DesignBrief;
+  return { ...brief_, rationale: sanitizeGeneratedText(brief_.rationale) };
 }
 
 export function sectionsToSkeleton(sections: Section[]): SkeletonSectionInput[] {
@@ -370,7 +389,7 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
   const formatOptions = PRODUCT_FORMATS.map((f) => `- ${f.id}: ${f.description}`).join("\n");
 
   const roughIdeaLine = input.roughIdea?.trim()
-    ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}\n\nAnchor your ideas around formalizing and strengthening THIS idea rather than proposing unrelated concepts — fill in the audience, problem, transformation, and format it's missing.`
+    ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}\n\nAnchor your ideas around formalizing and strengthening THIS idea rather than proposing unrelated concepts. Fill in the audience, problem, transformation, and format it's missing.`
     : "";
   const adjustmentLine = input.adjustmentNote?.trim()
     ? `\nThe user wants this adjusted: "${input.adjustmentNote.trim()}". Apply this to the ideas.`
@@ -384,14 +403,14 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
       "product they should make. Base every idea specifically on what they told us about their own " +
       "background and experience; never propose something generic they have no credibility to " +
       "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics.\n\n" +
-      `Available product formats:\n${formatOptions}`,
+      `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
     messages: [
       {
         role: "user",
         content: `What this person told us about themselves:
 
 Background / skills / story: ${input.background}
-Who they want to help: ${input.audienceHint?.trim() || "not specified — infer a good fit from their background"}
+Who they want to help: ${input.audienceHint?.trim() || "not specified, infer a good fit from their background"}
 Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}
 
 Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
@@ -407,7 +426,17 @@ Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
   }
 
   const parsed = toolUse.input as { ideas: ProductIdea[] };
-  return parsed.ideas;
+  return parsed.ideas.map((idea) => ({
+    ...idea,
+    productName: sanitizeGeneratedText(idea.productName),
+    niche: sanitizeGeneratedText(idea.niche),
+    audience: sanitizeGeneratedText(idea.audience),
+    corePromise: sanitizeGeneratedText(idea.corePromise),
+    problem: sanitizeGeneratedText(idea.problem),
+    transformation: sanitizeGeneratedText(idea.transformation),
+    suggestedSize: sanitizeGeneratedText(idea.suggestedSize),
+    rationale: sanitizeGeneratedText(idea.rationale),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -469,7 +498,8 @@ export async function generateBlueprint(input: BlueprintInput): Promise<Blueprin
     max_tokens: 1024,
     system:
       "You are a digital product strategist finalizing the strategy for a product before it's written. " +
-      "Be concrete and specific to this exact product — never generic.",
+      "Be concrete and specific to this exact product, never generic.\n\n" +
+      PUNCTUATION_RULE,
     messages: [
       {
         role: "user",
@@ -491,5 +521,14 @@ Produce the blueprint.`,
     throw new Error("Claude did not return a blueprint.");
   }
 
-  return toolUse.input as Blueprint;
+  const blueprint = toolUse.input as Blueprint;
+  return {
+    ...blueprint,
+    subtitle: sanitizeGeneratedText(blueprint.subtitle),
+    tone: sanitizeGeneratedText(blueprint.tone),
+    purpose: sanitizeGeneratedText(blueprint.purpose),
+    ctaNextStep: sanitizeGeneratedText(blueprint.ctaNextStep),
+    recommendedLength: sanitizeGeneratedText(blueprint.recommendedLength),
+    contentsPreview: sanitizeGeneratedTextArray(blueprint.contentsPreview),
+  };
 }

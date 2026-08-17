@@ -11,12 +11,12 @@ export default function Home() {
         <span className="font-display text-lg font-medium">PDF Product Generator</span>
       </div>
       <EyebrowLabel>No account · No design skill required</EyebrowLabel>
-      <h1 className="mt-3 max-w-2xl font-display text-5xl font-medium leading-tight text-app-ink">
+      <h1 className="mt-3 max-w-2xl font-display text-3xl font-medium leading-tight text-app-ink sm:text-5xl">
         Fill in a form. Get a <em className="italic text-app-accent">sellable</em> digital product PDF.
       </h1>
       <p className="mt-4 max-w-xl text-app-muted">
         Describe your product, review the AI-generated outline, and watch it become a fully
-        written, fully designed PDF — cover, layout, and all.
+        written, fully designed PDF: cover, layout, and all.
       </p>
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Feature icon={<Wand2 className="h-5 w-5" />} title="AI outline & content" />

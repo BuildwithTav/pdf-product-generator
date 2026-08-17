@@ -169,7 +169,7 @@ export const PRODUCT_FORMATS: { id: string; name: string; description: string }[
   { id: "guide", name: "Guide", description: "Straightforward how-to, organized by steps or stages." },
   { id: "workbook", name: "Workbook", description: "Teaching content plus exercises the reader fills in." },
   { id: "playbook", name: "Playbook", description: "Repeatable frameworks and plays for a recurring situation." },
-  { id: "checklist", name: "Checklist", description: "Short, scannable, action-first — minimal explanation." },
+  { id: "checklist", name: "Checklist", description: "Short, scannable, action-first, minimal explanation." },
   { id: "template-pack", name: "Template pack", description: "Ready-to-use templates with light instructional framing." },
   { id: "mini-ebook", name: "Mini ebook", description: "Narrative-driven, a bit longer, more storytelling." },
 ];

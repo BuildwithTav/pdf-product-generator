@@ -11,7 +11,7 @@ export function PathSelector({ onSelect }: { onSelect: (path: EntryPath) => void
         What do you want to <em className="italic text-app-accent">create?</em>
       </h1>
       <p className="mb-8 text-sm text-app-muted">
-        Pick where you&apos;re starting from — all three end up in the same place.
+        Pick where you&apos;re starting from. All three end up in the same place.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -35,7 +35,7 @@ export function PathSelector({ onSelect }: { onSelect: (path: EntryPath) => void
           icon={Zap}
           title="Fast track"
           quote="I know exactly what I'm making"
-          description="Move quickly — give us the details and go straight into planning."
+          description="Move quickly: give us the details and go straight into planning."
           color="coral"
           onClick={() => onSelect("fast_track")}
         />

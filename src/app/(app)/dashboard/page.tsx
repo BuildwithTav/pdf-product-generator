@@ -14,22 +14,22 @@ export default async function DashboardPage() {
     .order("updated_at", { ascending: false });
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <EyebrowLabel>Dashboard</EyebrowLabel>
-          <h1 className="font-display text-3xl font-medium text-app-ink">Your products</h1>
+          <h1 className="font-display text-2xl font-medium text-app-ink sm:text-3xl">Your products</h1>
         </div>
         <Link
           href="/new"
-          className="flex items-center gap-2 rounded-full bg-app-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-app-accent-hover"
+          className="flex w-fit items-center gap-2 rounded-full bg-app-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-app-accent-hover"
         >
           <Plus className="h-4 w-4" /> New product
         </Link>
       </div>
 
       {!projects || projects.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-app-border bg-app-surface p-16 text-center text-app-muted">
+        <div className="rounded-2xl border border-dashed border-app-border bg-app-surface p-10 text-center text-app-muted sm:p-16">
           <FileText className="mx-auto mb-3 h-8 w-8 text-app-border" />
           <p>No products yet. Create your first one to get started.</p>
         </div>

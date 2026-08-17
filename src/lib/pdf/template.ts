@@ -1,6 +1,7 @@
 import { marked } from "marked";
 import { getFontPairing, getPalette } from "@/lib/design-presets";
 import { iconSvgMarkup } from "@/lib/icons";
+import { sanitizeGeneratedText } from "@/lib/text";
 import type { DesignBrief, Project, Section } from "@/types/db";
 
 marked.setOptions({ breaks: false, gfm: true });
@@ -69,7 +70,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
 
   const sectionsHtml = ordered
     .map((section, i) => {
-      const bodyHtml = marked.parse(section.content || "") as string;
+      const bodyHtml = marked.parse(sanitizeGeneratedText(section.content) || "") as string;
       const iconBadge = section.icon
         ? `<span class="chapter-icon">${iconSvgMarkup(section.icon, { size: 18, color: "#fff" })}</span>`
         : "";
@@ -80,7 +81,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
             <span class="chapter-rule"></span>
             ${iconBadge}
           </div>
-          <h2>${escapeHtml(section.title)}</h2>
+          <h2>${escapeHtml(sanitizeGeneratedText(section.title))}</h2>
           <div class="chapter-body">${bodyHtml}</div>
         </section>`;
     })
@@ -90,7 +91,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     .map(
       (s, i) =>
         `<li><a href="#section-${i}"><span class="toc-number">${String(i + 1).padStart(2, "0")}</span><span class="toc-title">${escapeHtml(
-          s.title
+          sanitizeGeneratedText(s.title)
         )}</span></a></li>`
     )
     .join("\n");
@@ -259,10 +260,10 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   <div class="cover">
     <div class="cover-icon">${coverIconMarkup}</div>
     <div class="cover-content">
-      <div class="cover-eyebrow">${escapeHtml(project.niche)}</div>
-      <h1>${escapeHtml(project.product_name)}</h1>
-      ${project.subtitle ? `<div class="subtitle">${escapeHtml(project.subtitle)}</div>` : ""}
-      ${project.author_name ? `<div class="author">${escapeHtml(project.author_name)}</div>` : ""}
+      <div class="cover-eyebrow">${escapeHtml(sanitizeGeneratedText(project.niche))}</div>
+      <h1>${escapeHtml(sanitizeGeneratedText(project.product_name))}</h1>
+      ${project.subtitle ? `<div class="subtitle">${escapeHtml(sanitizeGeneratedText(project.subtitle))}</div>` : ""}
+      ${project.author_name ? `<div class="author">${escapeHtml(sanitizeGeneratedText(project.author_name))}</div>` : ""}
     </div>
   </div>
 

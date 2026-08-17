@@ -52,13 +52,13 @@ export function DiscoveryForm({
       </h1>
       <p className="mb-6 text-sm text-app-muted">
         {mode === "build"
-          ? "Don't worry about making this sound clever — tell us the idea in your own words. We'll shape it into something sellable."
-          : "A few honest details about your background is all we need — we'll turn it into product ideas."}
+          ? "Don't worry about making this sound clever. Tell us the idea in your own words. We'll shape it into something sellable."
+          : "A few honest details about your background is all we need. We'll turn it into product ideas."}
       </p>
 
       {hasProfile && (
         <p className="mb-4 rounded-lg bg-app-accent-soft px-3 py-2 text-xs text-app-ink">
-          We&apos;ve pre-filled this from what we already know about you — edit anything below.
+          We&apos;ve pre-filled this from what we already know about you. Edit anything below.
         </p>
       )}
 
@@ -83,8 +83,8 @@ export function DiscoveryForm({
           label={mode === "build" ? "A bit about you (optional)" : "What are you good at, or what have you overcome, that others ask you about?"}
           hint={
             mode === "build"
-              ? "I'm not sure — leave it blank and we'll figure it out from the rest."
-              : "We need at least a little here — even one or two sentences is enough."
+              ? "I'm not sure, leave it blank and we'll figure it out from the rest."
+              : "We need at least a little here: even one or two sentences is enough."
           }
         >
           <textarea

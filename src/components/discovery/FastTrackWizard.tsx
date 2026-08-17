@@ -49,7 +49,7 @@ const STEPS: StepConfig[] = [
         What niche is this <em className="italic text-app-accent">for?</em>
       </>
     ),
-    subtitle: "A short phrase is enough — Claude uses this to steer everything else.",
+    subtitle: "A short phrase is enough. Claude uses this to steer everything else.",
     placeholder: "e.g. Social media growth for coaches",
     type: "text",
     required: true,
@@ -62,7 +62,7 @@ const STEPS: StepConfig[] = [
         Who&apos;s the <em className="italic text-app-accent">buyer?</em>
       </>
     ),
-    subtitle: "Be specific — the more real this person feels, the sharper the writing.",
+    subtitle: "Be specific: the more real this person feels, the sharper the writing.",
     placeholder: "e.g. Solo coaches with under 5k followers who feel invisible online",
     type: "text",
     required: true,
@@ -88,7 +88,7 @@ const STEPS: StepConfig[] = [
         Any tone you want <em className="italic text-app-accent">matched?</em>
       </>
     ),
-    subtitle: "Skip this if you're not sure — Claude will pick a tone that fits your niche.",
+    subtitle: "Skip this if you're not sure. Claude will pick a tone that fits your niche.",
     placeholder: "e.g. Warm and direct, like talking to a smart friend",
     type: "text",
     required: false,
