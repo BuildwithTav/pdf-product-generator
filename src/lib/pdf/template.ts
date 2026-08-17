@@ -89,9 +89,9 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   const tocHtml = ordered
     .map(
       (s, i) =>
-        `<li><span class="toc-number">${String(i + 1).padStart(2, "0")}</span><span class="toc-title">${escapeHtml(
+        `<li><a href="#section-${i}"><span class="toc-number">${String(i + 1).padStart(2, "0")}</span><span class="toc-title">${escapeHtml(
           s.title
-        )}</span></li>`
+        )}</span></a></li>`
     )
     .join("\n");
 
@@ -189,12 +189,13 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   .toc-page h2 { font-size: 1.6rem; margin-bottom: 32px; }
   .toc-page ul { list-style: none; margin: 0; padding: 0; }
   .toc-page li {
-    display: flex; align-items: baseline; gap: 16px;
     padding: 10px 0; border-bottom: 1px solid var(--surface);
     font-size: 12pt;
   }
+  .toc-page a { display: flex; align-items: baseline; gap: 16px; text-decoration: none; color: inherit; }
   .toc-number { font-family: var(--font-heading); color: var(--accent); font-weight: 700; width: 2.2em; }
   .toc-title { color: var(--text); }
+  .chapter-body a { color: var(--accent); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; }
   .chapter { break-before: page; padding: 64px 64px 40px; }
   .chapter-kicker { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .chapter-number { font-family: var(--font-heading); color: var(--accent); font-size: 14pt; font-weight: 700; }

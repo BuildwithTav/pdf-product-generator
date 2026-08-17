@@ -130,7 +130,7 @@ function targetWordCount(sectionCount: number): number {
 
 export async function generateSectionContent(ctx: SectionGenerationContext): Promise<string> {
   const outlineList = ctx.fullSkeleton
-    .map((s, i) => `${i + 1}. ${s.title} — ${s.summary}`)
+    .map((s, i) => `${i + 1}. ${s.title} — ${s.summary} (anchor: #section-${i})`)
     .join("\n");
 
   const regenerationInstruction = ctx.regenerationNote
@@ -166,6 +166,10 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
       "vs. skim vs. skip ahead to) — this is a static, pre-written branch the reader follows themselves, " +
       "not something that changes automatically, so write it as direct instructions ('If you scored X, " +
       "start with Chapter 2 before moving on').\n" +
+      "- Any time you reference another chapter by name (including in a 'your path from here' note), " +
+      "write it as a Markdown link using that chapter's exact anchor from the outline below, e.g. " +
+      "[Chapter 2: Building Trust](#section-1) — the reader can tap it to jump straight there when " +
+      "reading digitally, so never reference a chapter as plain unlinked text.\n" +
       "- Do not repeat content covered by other sections. Write only the section content, no preamble or " +
       "meta-commentary about what you're doing.",
     messages: [
