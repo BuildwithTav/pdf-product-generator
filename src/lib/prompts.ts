@@ -788,8 +788,8 @@ export async function runResearch(
 }
 
 // ---------------------------------------------------------------------------
-// Trend scan — the first phase of "Surprise me": find the top 5 genuinely
-// trending pain points from the past week, before the user picks one to
+// Trend scan — the first phase of "Surprise me": find genuinely trending
+// pain points from the past week, before the user picks one to
 // anchor research/ideas generation to (via DiscoveryInput.openEndedTopic).
 // ---------------------------------------------------------------------------
 
@@ -823,7 +823,7 @@ const TREND_SCAN_TOOL = {
   name: "propose_trending_topics",
   description:
     "Report the top trending pain points/topics found, once your searches are complete. Call this " +
-    "exactly once, with exactly 5 topics, as the last thing you do.",
+    "exactly once, with exactly 8 topics, as the last thing you do.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -852,7 +852,7 @@ const TREND_SCAN_TOOL = {
           },
           required: ["title", "description", "whyTrending", "category"],
         },
-        description: "Exactly 5 distinct trending topics, ordered strongest first, chosen purely on genuine trending strength.",
+        description: "Exactly 8 distinct trending topics, ordered strongest first, chosen purely on genuine trending strength.",
       },
     },
     required: ["topics"],
@@ -885,18 +885,18 @@ function trendScanSystemPrompt(): string {
     "life area that rarely makes general news (pets, hobbies, relationships, home life, personal " +
     "finance, physical/mental health). Base these queries on what you actually found in step 1 or are " +
     "actively curious about, never on a stock phrase you'd reach for regardless of the week.\n" +
-    "3. Only after that research, let the 5 topics emerge from what you actually found repeated across " +
+    "3. Only after that research, let the topics emerge from what you actually found repeated across " +
     "threads/reviews/questions, and classify each into a category at that point, not before.\n\n" +
     "Skip generic blogs, brand sites, and news aggregators as your primary source for the final " +
     "topics — they're only useful in step 1 to find real events, not as evidence of genuine " +
     "discussion; the actual pain-point evidence must come from Reddit, Quora, or reviews.\n\n" +
-    "Report whichever 5 topics from that research are genuinely strongest, " +
-    "regardless of what category they land in or how many share a category: don't " +
-    "force artificial variety into the result if the real signal is concentrated. Within that, favor " +
-    "topics people would actually pay for a structured guide on (a specific buyer with a clear " +
-    "before/after) over topics that are really just current-events explainers nobody would pay to " +
-    "read.\n\n" +
-    "Then call propose_trending_topics exactly once, with exactly 5 topics, ordered strongest " +
+    "Report the 8 strongest distinct topics from that research (a wider spread than just the top " +
+    "handful helps different people land on different products instead of everyone converging on the " +
+    "same one) — regardless of what category they land in or how many share a category: don't force " +
+    "artificial variety into the result if the real signal is concentrated. Within that, favor topics " +
+    "people would actually pay for a structured guide on (a specific buyer with a clear before/after) " +
+    "over topics that are really just current-events explainers nobody would pay to read.\n\n" +
+    "Then call propose_trending_topics exactly once, with exactly 8 topics, ordered strongest " +
     "first. Never end your turn without calling it.\n\n" +
     PUNCTUATION_RULE
   );
@@ -916,7 +916,7 @@ function normalizeTrendingTopics(raw: unknown): TrendingTopic[] {
         typeof (t as { description?: unknown }).description === "string" &&
         ((t as { description: string }).description.trim().length > 0)
     )
-    .slice(0, 5)
+    .slice(0, 8)
     .map((t) => ({
       title: sanitizeGeneratedText(t.title),
       description: sanitizeGeneratedText(t.description),
@@ -943,7 +943,7 @@ export async function runTrendScan(
       {
         role: "user",
         content:
-          "Find the top 5 trending pain points or desires from the past 7 days that would make good " +
+          "Find the top 8 trending pain points or desires from the past 7 days that would make good " +
           "sellable digital PDF guide topics.",
       },
     ],
@@ -971,13 +971,13 @@ export async function runTrendScan(
       .trim();
     const retry = await anthropic().messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 2048,
+      max_tokens: 3072,
       system: trendScanSystemPrompt(),
       messages: [
         {
           role: "user",
           content:
-            "Find the top 5 trending pain points or desires from the past 7 days that would make good " +
+            "Find the top 8 trending pain points or desires from the past 7 days that would make good " +
             "sellable digital PDF guide topics.",
         },
         {
@@ -987,7 +987,7 @@ export async function runTrendScan(
         {
           role: "user",
           content:
-            "Call propose_trending_topics now with the 5 best trending topics you can identify from " +
+            "Call propose_trending_topics now with the 8 best trending topics you can identify from " +
             "what you've found so far, even without further searching. Never return an empty list.",
         },
       ],
