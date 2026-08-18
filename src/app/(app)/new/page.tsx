@@ -4,13 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PathSelector } from "@/components/discovery/PathSelector";
 import { DiscoveryForm, type DiscoveryAnswers } from "@/components/discovery/DiscoveryForm";
+import { ResearchProgress } from "@/components/discovery/ResearchProgress";
 import { OpportunityCard } from "@/components/discovery/OpportunityCard";
 import { FastTrackWizard, type FastTrackAnswers } from "@/components/discovery/FastTrackWizard";
 import { BlueprintEditor, type BlueprintDraft } from "@/components/discovery/BlueprintEditor";
+import { streamResearch } from "@/lib/research-client";
 import type { BusinessProfile, EntryPath, Project } from "@/types/db";
-import type { ProductIdea } from "@/lib/prompts";
+import type { ProductIdea, ResearchResult } from "@/lib/prompts";
 
-type Stage = "path" | "fast_track" | "discovery" | "opportunity" | "blueprint";
+type Stage = "path" | "fast_track" | "discovery" | "researching" | "opportunity" | "blueprint";
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function NewProjectPage() {
   const [discoveryMode, setDiscoveryMode] = useState<"discover" | "build">("discover");
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [discoveryAnswers, setDiscoveryAnswers] = useState<DiscoveryAnswers | null>(null);
+  const [researchStatuses, setResearchStatuses] = useState<string[]>([]);
   const [ideas, setIdeas] = useState<ProductIdea[]>([]);
   const [ideasVersion, setIdeasVersion] = useState(0);
 
@@ -52,16 +55,35 @@ export default function NewProjectPage() {
     setSubmitting(true);
     setError("");
     setDiscoveryAnswers(answers);
+    setResearchStatuses([]);
+    setStage("researching");
+
+    const payload = {
+      background: answers.background || answers.roughIdea,
+      audienceHint: answers.audienceHint || undefined,
+      interests: answers.interests || undefined,
+      roughIdea: discoveryMode === "build" ? answers.roughIdea : undefined,
+    };
+
+    let researchFindings: ResearchResult | undefined;
+    try {
+      researchFindings = await streamResearch(payload, (line) =>
+        setResearchStatuses((prev) => [...prev, line])
+      );
+    } catch {
+      // Research failing entirely is non-fatal — fall back to ungrounded
+      // idea generation rather than blocking the user.
+      setResearchStatuses((prev) => [
+        ...prev,
+        "Research unavailable, generating ideas from your background instead...",
+      ]);
+    }
+
     try {
       const res = await fetch("/api/ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          background: answers.background || answers.roughIdea,
-          audienceHint: answers.audienceHint || undefined,
-          interests: answers.interests || undefined,
-          roughIdea: discoveryMode === "build" ? answers.roughIdea : undefined,
-        }),
+        body: JSON.stringify({ ...payload, researchFindings }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -70,6 +92,7 @@ export default function NewProjectPage() {
       setStage("opportunity");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate ideas.");
+      setStage("discovery");
     } finally {
       setSubmitting(false);
     }
@@ -234,6 +257,8 @@ export default function NewProjectPage() {
             onSubmit={submitDiscovery}
           />
         )}
+
+        {stage === "researching" && <ResearchProgress statuses={researchStatuses} />}
 
         {stage === "opportunity" && ideas.length > 0 && (
           <OpportunityCard

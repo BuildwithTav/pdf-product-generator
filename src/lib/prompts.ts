@@ -299,6 +299,9 @@ export interface DiscoveryInput {
   roughIdea?: string;
   // "Adjust This Idea": a free-text tweak to re-run generation with.
   adjustmentNote?: string;
+  // Real pain-point research from runResearch(), when available, grounds
+  // idea generation in genuine buyer language instead of just background.
+  researchFindings?: ResearchResult;
 }
 
 export interface ProductIdea {
@@ -394,6 +397,13 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
   const adjustmentLine = input.adjustmentNote?.trim()
     ? `\nThe user wants this adjusted: "${input.adjustmentNote.trim()}". Apply this to the ideas.`
     : "";
+  const researchLine = input.researchFindings?.findings.length
+    ? `\nReal research on this niche, from web search of Reddit, Quora, and forums:\n${
+        input.researchFindings.summary
+      }\n${input.researchFindings.findings
+        .map((f) => `- ${f.painPoint}${f.quote ? ` ("${f.quote}")` : ""} [${f.source}]`)
+        .join("\n")}\n\nGround your ideas in these specific pain points and desires where they fit, rather than inferring only from the background above.`
+    : "";
 
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
@@ -402,7 +412,9 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
       "You are a digital product strategist helping someone figure out what sellable digital PDF " +
       "product they should make. Base every idea specifically on what they told us about their own " +
       "background and experience; never propose something generic they have no credibility to " +
-      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics.\n\n" +
+      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics. " +
+      "When real research findings are provided, treat them as the strongest signal available and " +
+      "anchor ideas in the specific pain points they describe.\n\n" +
       `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
     messages: [
       {
@@ -411,7 +423,7 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
 
 Background / skills / story: ${input.background}
 Who they want to help: ${input.audienceHint?.trim() || "not specified, infer a good fit from their background"}
-Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}
+Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}${researchLine}
 
 Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
       },
@@ -437,6 +449,202 @@ Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
     suggestedSize: sanitizeGeneratedText(idea.suggestedSize),
     rationale: sanitizeGeneratedText(idea.rationale),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Niche research — real pain-point language via web search, grounding the
+// ideas above in genuine buyer language instead of just self-reported
+// background. Streams live status while it works.
+// ---------------------------------------------------------------------------
+
+export interface ResearchFinding {
+  painPoint: string;
+  quote?: string;
+  source: string;
+  url?: string;
+}
+
+export interface ResearchResult {
+  summary: string;
+  findings: ResearchFinding[];
+}
+
+export type ResearchStreamEvent =
+  | { type: "status"; message: string }
+  | { type: "result"; result: ResearchResult }
+  | { type: "error"; message: string };
+
+const RESEARCH_TOOL = {
+  name: "propose_research",
+  description:
+    "Report the pain-point research findings once you have searched enough real sources to ground " +
+    "product ideas in genuine buyer language. Call this exactly once, after your searches, as the " +
+    "last thing you do.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      summary: {
+        type: "string" as const,
+        description: "1-3 sentence synthesis of what you found.",
+      },
+      findings: {
+        type: "array" as const,
+        items: {
+          type: "object" as const,
+          properties: {
+            painPoint: {
+              type: "string" as const,
+              description: "A specific, concrete pain point or desire found in real discussion, in your own words.",
+            },
+            quote: {
+              type: "string" as const,
+              description:
+                "A short paraphrase or representative snippet illustrating this pain point. Do not fabricate a verbatim quote you didn't see.",
+            },
+            source: {
+              type: "string" as const,
+              description: "The site/domain this came from, e.g. reddit.com.",
+            },
+            url: {
+              type: "string" as const,
+              description: "The specific URL this finding came from, if available.",
+            },
+          },
+          required: ["painPoint", "source"],
+        },
+        description: "3-8 distinct pain points/desires found via search, each traceable to a real source.",
+      },
+    },
+    required: ["summary", "findings"],
+  },
+};
+
+function researchSystemPrompt() {
+  return (
+    "You are a market researcher gathering genuine pain-point language for a digital product " +
+    "strategist. Use web_search to find how real people describe their problems in this niche on " +
+    "Reddit, Quora, forums, and reviews, in their own words, not marketing copy.\n\n" +
+    "Search first: run 2 to 6 distinct web_search calls, varying your phrasing and trying " +
+    "site-specific queries (e.g. site:reddit.com <topic>) where useful. Then, once you have enough " +
+    "to work with, call propose_research exactly once as the last thing you do, summarizing what " +
+    "you found. Never end your turn without calling propose_research, even if search results were " +
+    "thin, in which case report that honestly with fewer findings.\n\n" +
+    PUNCTUATION_RULE
+  );
+}
+
+function researchUserMessage(input: DiscoveryInput): string {
+  return `What this person told us about themselves:
+
+Background / skills / story: ${input.background}
+Who they want to help: ${input.audienceHint?.trim() || "not specified, infer a good fit from their background"}
+Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${
+    input.roughIdea?.trim() ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}` : ""
+  }
+
+Research the real pain points and desires of people in this space.`;
+}
+
+function sanitizeResearchResult(result: ResearchResult): ResearchResult {
+  return {
+    summary: sanitizeGeneratedText(result.summary),
+    findings: result.findings.map((f) => ({
+      ...f,
+      painPoint: sanitizeGeneratedText(f.painPoint),
+      quote: f.quote ? sanitizeGeneratedText(f.quote) : f.quote,
+    })),
+  };
+}
+
+export async function runResearch(
+  input: DiscoveryInput,
+  onEvent: (event: ResearchStreamEvent) => void
+): Promise<ResearchResult> {
+  const stream = anthropic().messages.stream({
+    model: CLAUDE_MODEL,
+    max_tokens: 2048,
+    system: researchSystemPrompt(),
+    messages: [{ role: "user", content: researchUserMessage(input) }],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, RESEARCH_TOOL],
+    // tool_choice intentionally omitted (defaults to "auto") — Claude needs
+    // freedom to call web_search first; forcing propose_research immediately
+    // would prevent that.
+  });
+
+  stream.on("contentBlock", (block) => {
+    if (block.type === "server_tool_use" && block.name === "web_search") {
+      const rawInput = block.input as { query?: unknown };
+      const query = typeof rawInput.query === "string" ? rawInput.query : "the topic";
+      onEvent({ type: "status", message: sanitizeGeneratedText(`Searching for "${query}"...`) });
+      return;
+    }
+    if (block.type === "web_search_tool_result") {
+      if (Array.isArray(block.content)) {
+        const hosts = Array.from(
+          new Set(
+            block.content
+              .map((r) => {
+                try {
+                  return new URL(r.url).hostname.replace(/^www\./, "");
+                } catch {
+                  return null;
+                }
+              })
+              .filter((h): h is string => Boolean(h))
+          )
+        );
+        onEvent({
+          type: "status",
+          message: hosts.length
+            ? `Reading results from ${hosts.join(", ")}...`
+            : "Reading search results...",
+        });
+      } else {
+        onEvent({ type: "status", message: "That search didn't return results, trying a different angle..." });
+      }
+    }
+  });
+
+  const finalMessage = await stream.finalMessage();
+  let toolUse = finalMessage.content.find(
+    (b) => b.type === "tool_use" && b.name === "propose_research"
+  );
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    // Claude finished without calling propose_research (tool_choice wasn't
+    // forced, since it needed freedom to search first). One forced retry,
+    // as a fresh single-turn call rather than replaying the raw response
+    // content blocks back as request params (their types aren't guaranteed
+    // to match), to close things out instead of failing the whole step.
+    onEvent({ type: "status", message: "Finalizing findings..." });
+    const priorText = finalMessage.content
+      .filter((b): b is Extract<typeof finalMessage.content[number], { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join(" ")
+      .trim();
+    const retry = await anthropic().messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      system: researchSystemPrompt(),
+      messages: [
+        {
+          role: "user",
+          content: `${researchUserMessage(input)}${
+            priorText ? `\n\nYou began researching and noted: ${priorText}` : ""
+          }\n\nCall propose_research now, summarizing your findings, or with an empty findings array if nothing useful turned up.`,
+        },
+      ],
+      tools: [RESEARCH_TOOL],
+      tool_choice: { type: "tool", name: "propose_research" },
+    });
+    toolUse = retry.content.find((b) => b.type === "tool_use");
+  }
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return research findings.");
+  }
+
+  return sanitizeResearchResult(toolUse.input as ResearchResult);
 }
 
 // ---------------------------------------------------------------------------

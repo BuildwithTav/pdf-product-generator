@@ -3,12 +3,22 @@ import { z } from "zod";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
 import { generateProductIdeas } from "@/lib/prompts";
 
+const ResearchFindingSchema = z.object({
+  painPoint: z.string(),
+  quote: z.string().optional(),
+  source: z.string(),
+  url: z.string().optional(),
+});
+
 const IdeasSchema = z.object({
   background: z.string().trim().min(1).max(1000),
   audienceHint: z.string().trim().max(500).optional(),
   interests: z.string().trim().max(500).optional(),
   roughIdea: z.string().trim().max(500).optional(),
   adjustmentNote: z.string().trim().max(500).optional(),
+  researchFindings: z
+    .object({ summary: z.string(), findings: z.array(ResearchFindingSchema).max(20) })
+    .optional(),
 });
 
 export async function POST(request: Request) {
