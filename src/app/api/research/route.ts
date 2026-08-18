@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api-helpers";
 import { runResearch, type ResearchStreamEvent } from "@/lib/prompts";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const ResearchSchema = z.object({
   background: z.string().trim().min(1).max(1000),

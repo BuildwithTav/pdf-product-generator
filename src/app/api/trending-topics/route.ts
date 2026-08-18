@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/api-helpers";
 import { runTrendScan, type TrendScanStreamEvent } from "@/lib/prompts";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST() {
   const { unauthorized } = await requireUser();
