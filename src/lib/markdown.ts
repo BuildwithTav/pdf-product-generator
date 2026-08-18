@@ -20,5 +20,9 @@ export function buildMarkdownExport(project: Project, sections: Section[]): stri
     )
     .join("\n\n---\n\n");
 
-  return `${header}\n\n---\n\n${body}\n`;
+  const ctaSection = project.cta_next_step
+    ? `\n\n---\n\n## Your Next Step\n\n${sanitizeGeneratedText(project.cta_next_step)}\n`
+    : "";
+
+  return `${header}\n\n---\n\n${body}${ctaSection}\n`;
 }

@@ -5,14 +5,23 @@ import { useRouter } from "next/navigation";
 import { PathSelector } from "@/components/discovery/PathSelector";
 import { DiscoveryForm, type DiscoveryAnswers } from "@/components/discovery/DiscoveryForm";
 import { ResearchProgress } from "@/components/discovery/ResearchProgress";
+import { TrendingTopicPicker } from "@/components/discovery/TrendingTopicPicker";
 import { OpportunityCard } from "@/components/discovery/OpportunityCard";
 import { FastTrackWizard, type FastTrackAnswers } from "@/components/discovery/FastTrackWizard";
 import { BlueprintEditor, type BlueprintDraft } from "@/components/discovery/BlueprintEditor";
-import { streamResearch, type ResearchPayload } from "@/lib/research-client";
+import { streamResearch, streamTrendingTopics, type ResearchPayload } from "@/lib/research-client";
 import type { BusinessProfile, EntryPath, Project } from "@/types/db";
-import type { ProductIdea, ResearchResult } from "@/lib/prompts";
+import type { ProductIdea, ResearchResult, TrendingTopic } from "@/lib/prompts";
 
-type Stage = "path" | "fast_track" | "discovery" | "researching" | "opportunity" | "blueprint";
+type Stage =
+  | "path"
+  | "fast_track"
+  | "discovery"
+  | "trend_scan"
+  | "trend_pick"
+  | "researching"
+  | "opportunity"
+  | "blueprint";
 
 interface IdeasPayload extends ResearchPayload {
   skipProfileSave?: boolean;
@@ -25,6 +34,8 @@ export default function NewProjectPage() {
   const [activePath, setActivePath] = useState<EntryPath>("discover");
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [researchStatuses, setResearchStatuses] = useState<string[]>([]);
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [chosenTrendingTopic, setChosenTrendingTopic] = useState<TrendingTopic | null>(null);
   const [lastIdeasPayload, setLastIdeasPayload] = useState<IdeasPayload | null>(null);
   const [ideas, setIdeas] = useState<ProductIdea[]>([]);
   const [ideasVersion, setIdeasVersion] = useState(0);
@@ -47,7 +58,7 @@ export default function NewProjectPage() {
       return;
     }
     if (path === "trending") {
-      await startTrending();
+      await startTrendScan();
       return;
     }
     setDiscoveryMode(path);
@@ -110,10 +121,27 @@ export default function NewProjectPage() {
     });
   }
 
-  async function startTrending() {
-    await runResearchAndIdeas({
+  async function startTrendScan() {
+    setError("");
+    setResearchStatuses([]);
+    setStage("trend_scan");
+    try {
+      const topics = await streamTrendingTopics((line) => setResearchStatuses((prev) => [...prev, line]));
+      if (!topics || topics.length === 0) throw new Error("Failed to find trending topics.");
+      setTrendingTopics(topics);
+      setStage("trend_pick");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to scan trending topics.");
+      setStage("path");
+    }
+  }
+
+  function selectTrendingTopic(topic: TrendingTopic) {
+    setChosenTrendingTopic(topic);
+    runResearchAndIdeas({
       background: "N/A",
       openEnded: true,
+      openEndedTopic: `${topic.title}: ${topic.description}`,
       skipProfileSave: true,
     });
   }
@@ -272,8 +300,22 @@ export default function NewProjectPage() {
           />
         )}
 
+        {stage === "trend_scan" && <ResearchProgress statuses={researchStatuses} openEnded />}
+
+        {stage === "trend_pick" && (
+          <TrendingTopicPicker
+            topics={trendingTopics}
+            onSelect={selectTrendingTopic}
+            onBack={() => setStage("path")}
+          />
+        )}
+
         {stage === "researching" && (
-          <ResearchProgress statuses={researchStatuses} openEnded={activePath === "trending"} />
+          <ResearchProgress
+            statuses={researchStatuses}
+            openEnded={activePath === "trending"}
+            topic={chosenTrendingTopic?.title}
+          />
         )}
 
         {stage === "opportunity" && ideas.length > 0 && (
@@ -282,7 +324,9 @@ export default function NewProjectPage() {
             ideas={ideas}
             submitting={submitting}
             error={error}
-            onBack={() => setStage(activePath === "trending" ? "path" : "discovery")}
+            onBack={() =>
+              setStage(activePath === "trending" ? (trendingTopics.length ? "trend_pick" : "path") : "discovery")
+            }
             onAdjust={adjustIdeas}
             onBuild={(idea: ProductIdea) =>
               createProjectAndBlueprint({

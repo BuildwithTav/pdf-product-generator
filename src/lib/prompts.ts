@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES, PRODUCT_FORMATS } from "@/lib/design-presets";
 import { ICON_IDS } from "@/lib/icons";
@@ -323,6 +324,10 @@ export interface DiscoveryInput {
   // "Surprise me": no personal background given, find whatever pain point
   // is genuinely trending right now instead of anchoring to credibility.
   openEnded?: boolean;
+  // Set once the user has picked a specific topic from the trend scan —
+  // anchors the openEnded research/ideas calls to that topic instead of
+  // searching for literally anything.
+  openEndedTopic?: string;
 }
 
 export interface ProductIdea {
@@ -484,6 +489,13 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
     : "";
 
   if (input.openEnded) {
+    const directionLine = input.openEndedTopic
+      ? `Find a sellable digital product opportunity built specifically around this trending topic: ${input.openEndedTopic}`
+      : "Find a sellable digital product opportunity with no assigned direction.";
+    const countInstruction = input.openEndedTopic
+      ? "Propose 3 distinct product angles on this topic (e.g. different formats, different specific sub-problems, or different buyer segments), ordered best-fit first."
+      : "Propose 3 distinct digital product ideas, ordered best-fit first, each in a different-enough niche or topic that they're genuinely 3 separate opportunities rather than 3 variations on one theme.";
+
     return callIdeasTool(
       "You are a digital product strategist scouting for a sellable digital PDF product idea with " +
         "no assigned niche. There is no personal background to anchor to here, so prioritize genuine " +
@@ -491,7 +503,7 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
         "credibly trust a well-written guide on it. Favor niches with a clear, specific buyer and a " +
         "concrete promise over broad topics.\n\n" +
         `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
-      `Find a sellable digital product opportunity with no assigned direction.${researchLine}${adjustmentLine}\n\nPropose 3 distinct digital product ideas, ordered best-fit first, each in a different-enough niche or topic that they're genuinely 3 separate opportunities rather than 3 variations on one theme.`
+      `${directionLine}${researchLine}${adjustmentLine}\n\n${countInstruction}`
     );
   }
 
@@ -601,6 +613,12 @@ function researchSystemPrompt() {
 
 function researchUserMessage(input: DiscoveryInput): string {
   if (input.openEnded) {
+    if (input.openEndedTopic) {
+      return (
+        `Research real pain points and desires around this specific trending topic: ${input.openEndedTopic}\n\n` +
+        "Find how real people describe this problem in their own words."
+      );
+    }
     return (
       "Find whatever pain point or desire is genuinely trending right now, in any niche or topic, " +
       "that a beginner could turn into a sellable digital PDF guide or workbook. Prioritize current " +
@@ -658,26 +676,16 @@ function sanitizeResearchResult(result: ResearchResult): ResearchResult {
   };
 }
 
-export async function runResearch(
-  input: DiscoveryInput,
-  onEvent: (event: ResearchStreamEvent) => void
-): Promise<ResearchResult> {
-  const stream = anthropic().messages.stream({
-    model: CLAUDE_MODEL,
-    max_tokens: 2048,
-    system: researchSystemPrompt(),
-    messages: [{ role: "user", content: researchUserMessage(input) }],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, RESEARCH_TOOL],
-    // tool_choice intentionally omitted (defaults to "auto") — Claude needs
-    // freedom to call web_search first; forcing propose_research immediately
-    // would prevent that.
-  });
-
-  stream.on("contentBlock", (block) => {
+// Shared between runResearch and runTrendScan — both stream a web_search-
+// enabled call and want the same "Searching for X... / Reading results
+// from Y..." status mapping. Returns the callback to pass into
+// stream.on("contentBlock", ...).
+function searchStatusHandler(onStatus: (message: string) => void) {
+  return (block: Anthropic.ContentBlock) => {
     if (block.type === "server_tool_use" && block.name === "web_search") {
       const rawInput = block.input as { query?: unknown };
       const query = typeof rawInput.query === "string" ? rawInput.query : "the topic";
-      onEvent({ type: "status", message: sanitizeGeneratedText(`Searching for "${query}"...`) });
+      onStatus(sanitizeGeneratedText(`Searching for "${query}"...`));
       return;
     }
     if (block.type === "web_search_tool_result") {
@@ -695,17 +703,30 @@ export async function runResearch(
               .filter((h): h is string => Boolean(h))
           )
         );
-        onEvent({
-          type: "status",
-          message: hosts.length
-            ? `Reading results from ${hosts.join(", ")}...`
-            : "Reading search results...",
-        });
+        onStatus(hosts.length ? `Reading results from ${hosts.join(", ")}...` : "Reading search results...");
       } else {
-        onEvent({ type: "status", message: "That search didn't return results, trying a different angle..." });
+        onStatus("That search didn't return results, trying a different angle...");
       }
     }
+  };
+}
+
+export async function runResearch(
+  input: DiscoveryInput,
+  onEvent: (event: ResearchStreamEvent) => void
+): Promise<ResearchResult> {
+  const stream = anthropic().messages.stream({
+    model: CLAUDE_MODEL,
+    max_tokens: 2048,
+    system: researchSystemPrompt(),
+    messages: [{ role: "user", content: researchUserMessage(input) }],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, RESEARCH_TOOL],
+    // tool_choice intentionally omitted (defaults to "auto") — Claude needs
+    // freedom to call web_search first; forcing propose_research immediately
+    // would prevent that.
   });
+
+  stream.on("contentBlock", searchStatusHandler((message) => onEvent({ type: "status", message })));
 
   const finalMessage = await stream.finalMessage();
   let toolUse = finalMessage.content.find(
@@ -747,6 +768,156 @@ export async function runResearch(
   }
 
   return sanitizeResearchResult(normalizeResearchResult(toolUse.input));
+}
+
+// ---------------------------------------------------------------------------
+// Trend scan — the first phase of "Surprise me": find the top 5 genuinely
+// trending pain points from the past week, before the user picks one to
+// anchor research/ideas generation to (via DiscoveryInput.openEndedTopic).
+// ---------------------------------------------------------------------------
+
+export interface TrendingTopic {
+  title: string;
+  description: string;
+  whyTrending: string;
+}
+
+export type TrendScanStreamEvent =
+  | { type: "status"; message: string }
+  | { type: "result"; result: TrendingTopic[] }
+  | { type: "error"; message: string };
+
+const TREND_SCAN_TOOL = {
+  name: "propose_trending_topics",
+  description:
+    "Report the top trending pain points/topics found, once your searches are complete. Call this " +
+    "exactly once, with exactly 5 topics, as the last thing you do.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      topics: {
+        type: "array" as const,
+        items: {
+          type: "object" as const,
+          properties: {
+            title: {
+              type: "string" as const,
+              description: "A short, specific name for this trending topic or pain point.",
+            },
+            description: {
+              type: "string" as const,
+              description: "1-2 sentences on what this is and who's affected.",
+            },
+            whyTrending: {
+              type: "string" as const,
+              description: "One sentence on why this is trending right now, e.g. what's driving the recent discussion.",
+            },
+          },
+          required: ["title", "description", "whyTrending"],
+        },
+        description: "Exactly 5 distinct trending topics, ordered strongest first.",
+      },
+    },
+    required: ["topics"],
+  },
+};
+
+function trendScanSystemPrompt(): string {
+  const today = new Date();
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const dateContext = `Today's date is ${today.toISOString().slice(0, 10)}. Focus on discussion from the past 7 days (since ${sevenDaysAgo.toISOString().slice(0, 10)}).`;
+
+  return (
+    "You are a trend scout finding genuinely trending pain points and desires across any topic, for " +
+    "someone who wants to build a sellable digital PDF guide around whatever is most current right " +
+    "now.\n\n" +
+    `${dateContext}\n\n` +
+    "Search first: run 3 to 6 distinct web_search calls across different areas of life (health, " +
+    "money, relationships, work, technology, etc.) so the 5 topics you report are genuinely varied, " +
+    "not 5 versions of the same theme. Use real, recent discussion (Reddit, Quora, forums, news), " +
+    "not evergreen topics. Then call propose_trending_topics exactly once, with exactly 5 topics, " +
+    "ordered strongest first. Never end your turn without calling it.\n\n" +
+    PUNCTUATION_RULE
+  );
+}
+
+function normalizeTrendingTopics(raw: unknown): TrendingTopic[] {
+  const obj = (raw ?? {}) as { topics?: unknown };
+  const rawTopics = Array.isArray(obj.topics) ? obj.topics : [];
+  return rawTopics
+    .filter(
+      (t): t is { title: string; description: string; whyTrending?: unknown } =>
+        Boolean(t) &&
+        typeof (t as { title?: unknown }).title === "string" &&
+        ((t as { title: string }).title.trim().length > 0) &&
+        typeof (t as { description?: unknown }).description === "string" &&
+        ((t as { description: string }).description.trim().length > 0)
+    )
+    .slice(0, 5)
+    .map((t) => ({
+      title: sanitizeGeneratedText(t.title),
+      description: sanitizeGeneratedText(t.description),
+      whyTrending: sanitizeGeneratedText(typeof t.whyTrending === "string" ? t.whyTrending : ""),
+    }));
+}
+
+export async function runTrendScan(
+  onEvent: (event: TrendScanStreamEvent) => void
+): Promise<TrendingTopic[]> {
+  const stream = anthropic().messages.stream({
+    model: CLAUDE_MODEL,
+    max_tokens: 2048,
+    system: trendScanSystemPrompt(),
+    messages: [
+      {
+        role: "user",
+        content:
+          "Find the top 5 trending pain points or desires from the past 7 days that would make good " +
+          "sellable digital PDF guide topics.",
+      },
+    ],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, TREND_SCAN_TOOL],
+    // tool_choice intentionally omitted (defaults to "auto"), same reason as runResearch.
+  });
+
+  stream.on("contentBlock", searchStatusHandler((message) => onEvent({ type: "status", message })));
+
+  const finalMessage = await stream.finalMessage();
+  let toolUse = finalMessage.content.find(
+    (b) => b.type === "tool_use" && b.name === "propose_trending_topics"
+  );
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    // Same forced-retry fallback as runResearch.
+    onEvent({ type: "status", message: "Finalizing trending topics..." });
+    const retry = await anthropic().messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      system: trendScanSystemPrompt(),
+      messages: [
+        {
+          role: "user",
+          content:
+            "Call propose_trending_topics now with the 5 best trending topics you can identify, " +
+            "even without further searching.",
+        },
+      ],
+      tools: [TREND_SCAN_TOOL],
+      tool_choice: { type: "tool", name: "propose_trending_topics" },
+    });
+    toolUse = retry.content.find((b) => b.type === "tool_use");
+  }
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return trending topics.");
+  }
+
+  const topics = normalizeTrendingTopics(toolUse.input);
+  if (topics.length === 0) {
+    throw new Error("Claude did not return usable trending topics. Try again.");
+  }
+
+  return topics;
 }
 
 // ---------------------------------------------------------------------------

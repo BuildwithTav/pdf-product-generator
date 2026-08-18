@@ -254,6 +254,19 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     border: 2px solid var(--accent); border-radius: 5px;
   }
   .chapter-body input[type="checkbox"]:checked { background: var(--accent); }
+  .cta-page {
+    break-before: page;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 64px 88px;
+    color: #fff;
+    background: var(--primary);
+  }
+  .cta-eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11pt; opacity: 0.85; margin-bottom: 18px; }
+  .cta-text { font-family: var(--font-heading); font-size: ${mood.headingSize}; line-height: 1.3; max-width: 32em; margin: 0 auto; }
 </style>
 </head>
 <body>
@@ -273,6 +286,17 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   </div>
 
   ${sectionsHtml}
+
+  ${
+    project.cta_next_step
+      ? `<div class="cta-page">
+    <div>
+      <div class="cta-eyebrow">Your Next Step</div>
+      <p class="cta-text">${escapeHtml(sanitizeGeneratedText(project.cta_next_step))}</p>
+    </div>
+  </div>`
+      : ""
+  }
 </body>
 </html>`;
 }
