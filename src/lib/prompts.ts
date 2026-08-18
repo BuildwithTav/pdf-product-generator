@@ -506,19 +506,29 @@ export async function generateProductIdeas(input: DiscoveryInput): Promise<Produ
 
   if (input.openEnded) {
     const directionLine = input.openEndedTopic
-      ? `Find a sellable digital product opportunity built specifically around this trending topic: ${input.openEndedTopic}`
+      ? `The chosen trending topic, which every idea MUST be built around, with no substitution: ${input.openEndedTopic}`
       : "Find a sellable digital product opportunity with no assigned direction.";
     const countInstruction = input.openEndedTopic
       ? "Propose 3 distinct product angles on this topic (e.g. different formats, different specific sub-problems, or different buyer segments), ordered best-fit first."
       : "Propose 3 distinct digital product ideas, ordered best-fit first, each in a different-enough niche or topic that they're genuinely 3 separate opportunities rather than 3 variations on one theme.";
 
-    return callIdeasTool(
-      "You are a digital product strategist scouting for a sellable digital PDF product idea with " +
+    const openEndedSystem = input.openEndedTopic
+      ? "You are a digital product strategist. The user has already picked one specific trending " +
+        "topic to build a product around — your only job is to develop 3 distinct, sellable product " +
+        "angles WITHIN that exact topic (different formats, sub-problems, or buyer segments), not to " +
+        "find or substitute a different topic, even one you think is more current or promising. Every " +
+        "idea you propose must clearly be about the topic given below, not a tangent or a different " +
+        "trending story. Favor a clear, specific buyer and a concrete promise over broad framing.\n\n" +
+        `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`
+      : "You are a digital product strategist scouting for a sellable digital PDF product idea with " +
         "no assigned niche. There is no personal background to anchor to here, so prioritize genuine " +
         "current relevance, a searchable and actively trending pain point, and a buyer who would " +
         "credibly trust a well-written guide on it. Favor niches with a clear, specific buyer and a " +
         "concrete promise over broad topics.\n\n" +
-        `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
+        `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`;
+
+    return callIdeasTool(
+      openEndedSystem,
       `${directionLine}${researchLine}${adjustmentLine}\n\n${countInstruction}`
     );
   }
