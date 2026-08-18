@@ -915,7 +915,11 @@ export async function runTrendScan(
 ): Promise<TrendingTopic[]> {
   const stream = anthropic().messages.stream({
     model: CLAUDE_MODEL,
-    max_tokens: 2048,
+    // Generous budget: the model needs room for up to 6 site-targeted
+    // searches plus reasoning about what it found before it can call the
+    // tool. Too tight here means the turn ends mid-search, missing the
+    // tool call entirely and falling into the blind retry below.
+    max_tokens: 6144,
     system: trendScanSystemPrompt(),
     messages: [
       {
@@ -937,18 +941,36 @@ export async function runTrendScan(
   );
 
   if (!toolUse || toolUse.type !== "tool_use") {
-    // Same forced-retry fallback as runResearch.
+    // Same forced-retry fallback as runResearch — and, like that one, carry
+    // forward whatever the first call already found instead of asking blind.
+    // Without this, a retry triggered by running out of budget mid-search
+    // has nothing to work with and reliably produces empty/unusable topics.
     onEvent({ type: "status", message: "Finalizing trending topics..." });
+    const priorText = finalMessage.content
+      .filter((b): b is Extract<typeof finalMessage.content[number], { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join(" ")
+      .trim();
     const retry = await anthropic().messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: trendScanSystemPrompt(),
       messages: [
         {
           role: "user",
           content:
-            "Call propose_trending_topics now with the 5 best trending topics you can identify, " +
-            "even without further searching.",
+            "Find the top 5 trending pain points or desires from the past 7 days that would make good " +
+            "sellable digital PDF guide topics.",
+        },
+        {
+          role: "assistant",
+          content: priorText || "I've been researching trending pain points.",
+        },
+        {
+          role: "user",
+          content:
+            "Call propose_trending_topics now with the 5 best trending topics you can identify from " +
+            "what you've found so far, even without further searching. Never return an empty list.",
         },
       ],
       tools: [TREND_SCAN_TOOL],
