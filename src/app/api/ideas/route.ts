@@ -19,6 +19,8 @@ const IdeasSchema = z.object({
   researchFindings: z
     .object({ summary: z.string(), findings: z.array(ResearchFindingSchema).max(20) })
     .optional(),
+  openEnded: z.boolean().optional(),
+  skipProfileSave: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -40,19 +42,23 @@ export async function POST(request: Request) {
 
   // Seed/refresh the shared business profile so the next product's
   // discovery flow can pre-fill from what we just learned. Best-effort —
-  // never let a profile-save hiccup take down idea generation.
-  try {
-    await supabase.from("business_profiles").upsert(
-      {
-        id: user.id,
-        background: parsed.data.background,
-        audience_hint: parsed.data.audienceHint || null,
-        interests: parsed.data.interests || null,
-      },
-      { onConflict: "id" }
-    );
-  } catch (err) {
-    console.error("Failed to save business profile:", err);
+  // never let a profile-save hiccup take down idea generation. Skipped for
+  // the open-ended "Surprise me" path, whose background is a placeholder,
+  // not real data — saving it would overwrite the user's actual profile.
+  if (!parsed.data.skipProfileSave) {
+    try {
+      await supabase.from("business_profiles").upsert(
+        {
+          id: user.id,
+          background: parsed.data.background,
+          audience_hint: parsed.data.audienceHint || null,
+          interests: parsed.data.interests || null,
+        },
+        { onConflict: "id" }
+      );
+    } catch (err) {
+      console.error("Failed to save business profile:", err);
+    }
   }
 
   return NextResponse.json({ ideas });

@@ -2,7 +2,7 @@ export type ProjectStatus = "idea" | "blueprint" | "writing" | "ready_to_design"
 
 export type SectionStatus = "pending" | "generating" | "generated" | "approved";
 
-export type EntryPath = "discover" | "build" | "fast_track";
+export type EntryPath = "discover" | "build" | "fast_track" | "trending";
 
 export interface DesignPalette {
   id: string;

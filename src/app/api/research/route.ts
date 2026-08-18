@@ -10,6 +10,7 @@ const ResearchSchema = z.object({
   audienceHint: z.string().trim().max(500).optional(),
   interests: z.string().trim().max(500).optional(),
   roughIdea: z.string().trim().max(500).optional(),
+  openEnded: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {

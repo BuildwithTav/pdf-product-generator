@@ -10,7 +10,7 @@ const IntakeSchema = z.object({
   corePromise: z.string().trim().min(1).max(500),
   toneReference: z.string().trim().max(500).optional(),
   chapterCountRequested: z.number().int().min(1).max(20).optional(),
-  path: z.enum(["discover", "build", "fast_track"]).optional(),
+  path: z.enum(["discover", "build", "fast_track", "trending"]).optional(),
   problem: z.string().trim().max(500).optional(),
   transformation: z.string().trim().max(500).optional(),
   format: z.enum(PRODUCT_FORMATS.map((f) => f.id) as [string, ...string[]]).optional(),

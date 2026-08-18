@@ -5,6 +5,7 @@ export interface ResearchPayload {
   audienceHint?: string;
   interests?: string;
   roughIdea?: string;
+  openEnded?: boolean;
 }
 
 export async function streamResearch(

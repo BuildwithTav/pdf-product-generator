@@ -302,6 +302,9 @@ export interface DiscoveryInput {
   // Real pain-point research from runResearch(), when available, grounds
   // idea generation in genuine buyer language instead of just background.
   researchFindings?: ResearchResult;
+  // "Surprise me": no personal background given, find whatever pain point
+  // is genuinely trending right now instead of anchoring to credibility.
+  openEnded?: boolean;
 }
 
 export interface ProductIdea {
@@ -388,46 +391,12 @@ const IDEAS_TOOL = {
   },
 };
 
-export async function generateProductIdeas(input: DiscoveryInput): Promise<ProductIdea[]> {
-  const formatOptions = PRODUCT_FORMATS.map((f) => `- ${f.id}: ${f.description}`).join("\n");
-
-  const roughIdeaLine = input.roughIdea?.trim()
-    ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}\n\nAnchor your ideas around formalizing and strengthening THIS idea rather than proposing unrelated concepts. Fill in the audience, problem, transformation, and format it's missing.`
-    : "";
-  const adjustmentLine = input.adjustmentNote?.trim()
-    ? `\nThe user wants this adjusted: "${input.adjustmentNote.trim()}". Apply this to the ideas.`
-    : "";
-  const researchLine = input.researchFindings?.findings.length
-    ? `\nReal research on this niche, from web search of Reddit, Quora, and forums:\n${
-        input.researchFindings.summary
-      }\n${input.researchFindings.findings
-        .map((f) => `- ${f.painPoint}${f.quote ? ` ("${f.quote}")` : ""} [${f.source}]`)
-        .join("\n")}\n\nGround your ideas in these specific pain points and desires where they fit, rather than inferring only from the background above.`
-    : "";
-
+async function callIdeasTool(system: string, userContent: string): Promise<ProductIdea[]> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 2048,
-    system:
-      "You are a digital product strategist helping someone figure out what sellable digital PDF " +
-      "product they should make. Base every idea specifically on what they told us about their own " +
-      "background and experience; never propose something generic they have no credibility to " +
-      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics. " +
-      "When real research findings are provided, treat them as the strongest signal available and " +
-      "anchor ideas in the specific pain points they describe.\n\n" +
-      `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
-    messages: [
-      {
-        role: "user",
-        content: `What this person told us about themselves:
-
-Background / skills / story: ${input.background}
-Who they want to help: ${input.audienceHint?.trim() || "not specified, infer a good fit from their background"}
-Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}${researchLine}
-
-Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
-      },
-    ],
+    system,
+    messages: [{ role: "user", content: userContent }],
     tools: [IDEAS_TOOL],
     tool_choice: { type: "tool", name: "propose_product_ideas" },
   });
@@ -449,6 +418,54 @@ Propose 3 distinct digital product ideas for them, ordered best-fit first.`,
     suggestedSize: sanitizeGeneratedText(idea.suggestedSize),
     rationale: sanitizeGeneratedText(idea.rationale),
   }));
+}
+
+export async function generateProductIdeas(input: DiscoveryInput): Promise<ProductIdea[]> {
+  const formatOptions = PRODUCT_FORMATS.map((f) => `- ${f.id}: ${f.description}`).join("\n");
+
+  const adjustmentLine = input.adjustmentNote?.trim()
+    ? `\nThe user wants this adjusted: "${input.adjustmentNote.trim()}". Apply this to the ideas.`
+    : "";
+  const researchLine = input.researchFindings?.findings.length
+    ? `\nReal research on this niche, from web search of Reddit, Quora, and forums:\n${
+        input.researchFindings.summary
+      }\n${input.researchFindings.findings
+        .map((f) => `- ${f.painPoint}${f.quote ? ` ("${f.quote}")` : ""} [${f.source}]`)
+        .join("\n")}\n\nGround your ideas in these specific pain points and desires where they fit, rather than inferring only from the background above.`
+    : "";
+
+  if (input.openEnded) {
+    return callIdeasTool(
+      "You are a digital product strategist scouting for a sellable digital PDF product idea with " +
+        "no assigned niche. There is no personal background to anchor to here, so prioritize genuine " +
+        "current relevance, a searchable and actively trending pain point, and a buyer who would " +
+        "credibly trust a well-written guide on it. Favor niches with a clear, specific buyer and a " +
+        "concrete promise over broad topics.\n\n" +
+        `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
+      `Find a sellable digital product opportunity with no assigned direction.${researchLine}${adjustmentLine}\n\nPropose 3 distinct digital product ideas, ordered best-fit first, each in a different-enough niche or topic that they're genuinely 3 separate opportunities rather than 3 variations on one theme.`
+    );
+  }
+
+  const roughIdeaLine = input.roughIdea?.trim()
+    ? `\nRough idea they already have in mind: ${input.roughIdea.trim()}\n\nAnchor your ideas around formalizing and strengthening THIS idea rather than proposing unrelated concepts. Fill in the audience, problem, transformation, and format it's missing.`
+    : "";
+
+  return callIdeasTool(
+    "You are a digital product strategist helping someone figure out what sellable digital PDF " +
+      "product they should make. Base every idea specifically on what they told us about their own " +
+      "background and experience; never propose something generic they have no credibility to " +
+      "write. Favor niches with a clear, specific buyer and a concrete promise over broad topics. " +
+      "When real research findings are provided, treat them as the strongest signal available and " +
+      "anchor ideas in the specific pain points they describe.\n\n" +
+      `Available product formats:\n${formatOptions}\n\n${PUNCTUATION_RULE}`,
+    `What this person told us about themselves:
+
+Background / skills / story: ${input.background}
+Who they want to help: ${input.audienceHint?.trim() || "not specified, infer a good fit from their background"}
+Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not specified"}${roughIdeaLine}${adjustmentLine}${researchLine}
+
+Propose 3 distinct digital product ideas for them, ordered best-fit first.`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -534,6 +551,13 @@ function researchSystemPrompt() {
 }
 
 function researchUserMessage(input: DiscoveryInput): string {
+  if (input.openEnded) {
+    return (
+      "Find whatever pain point or desire is genuinely trending right now, in any niche or topic, " +
+      "that a beginner could turn into a sellable digital PDF guide or workbook. Prioritize current " +
+      "relevance and real discussion volume over any single niche."
+    );
+  }
   return `What this person told us about themselves:
 
 Background / skills / story: ${input.background}
