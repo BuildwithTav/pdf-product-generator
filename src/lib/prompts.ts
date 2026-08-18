@@ -10,10 +10,22 @@ import type { DesignBrief, Section, SkeletonSectionInput } from "@/types/db";
 // reaching for an en dash or run-on comma splice as a substitute, and keeps
 // general punctuation (terminal periods, colons, no doubled punctuation)
 // clean at the source instead of relying on the code-level cleanup alone.
+// Also holds the plain-language rule, added after a real product title
+// ("Beat the Bots: The ATS Survival Playbook") shipped an unexplained
+// acronym nobody outside recruiting would recognize — titles, subtitles,
+// and copy all need to survive contact with a reader who isn't already an
+// expert in the topic, especially since this app exists so non-experts can
+// build products in niches they may only loosely know.
 const PUNCTUATION_RULE =
   "Never use an em dash (—) anywhere in your output: use a comma, period, colon, or parentheses " +
   "instead, whichever fits the sentence. Use correct, precise punctuation throughout: proper commas, " +
-  "colons, and terminal periods; no doubled or missing punctuation; no comma splices.";
+  "colons, and terminal periods; no doubled or missing punctuation; no comma splices.\n\n" +
+  "Write in plain, immediately understandable language, roughly the reading level of a smart " +
+  "12-year-old. Never use an acronym, abbreviation, or industry/insider term without spelling out " +
+  "what it means the first time, especially in a title, subtitle, or heading, since those are read " +
+  "in isolation before any explanation. If a simpler everyday word says the same thing, use it. " +
+  "This applies most to anything a reader sees before they've read the surrounding context: titles, " +
+  "subtitles, headings, and short descriptions.";
 
 export interface ProjectBrief {
   productName: string;
@@ -344,7 +356,11 @@ export interface ProductIdea {
 }
 
 const IDEA_PROPERTIES = {
-  productName: { type: "string" as const, description: "A compelling, specific product title." },
+  productName: {
+    type: "string" as const,
+    description:
+      "A compelling, specific product title in plain everyday language. Never an unexplained acronym or industry term on its own, e.g. write \"beat the resume-screening robots\" not \"beat the ATS\".",
+  },
   niche: { type: "string" as const, description: "Short niche phrase, e.g. 'Meal planning for busy parents'." },
   audience: {
     type: "string" as const,
