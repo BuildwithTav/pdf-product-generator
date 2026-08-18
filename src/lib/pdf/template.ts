@@ -123,6 +123,13 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     --accent-bar: ${mood.accentBar};
   }
   * { box-sizing: border-box; }
+  /* Real per-page margin for ordinary content pages — unlike CSS padding
+     on a box that spans multiple printed pages (which only applies to its
+     first/last page), an @page margin repeats on every physical page,
+     including a chapter's overflow pages. */
+  @page { size: A4; margin: 24mm 20mm 20mm; }
+  /* Full-bleed pages (cover, CTA) opt into zero margin via the "page: bleed" property. */
+  @page bleed { size: A4; margin: 0; }
   html, body {
     margin: 0;
     padding: 0;
@@ -133,8 +140,8 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     line-height: ${mood.lineHeight};
   }
   h1, h2, h3 { font-family: var(--font-heading); font-weight: 700; color: var(--primary); margin: 0 0 0.5em; }
-  .page { padding: 56px 60px; }
   .cover {
+    page: bleed;
     position: relative;
     overflow: hidden;
     height: 100vh;
@@ -186,18 +193,18 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   .cover h1 { color: #fff; font-size: ${mood.headingSize}; line-height: 1.1; margin-bottom: 14px; }
   .cover .subtitle { font-size: 13pt; opacity: 0.92; max-width: 32em; }
   .cover .author { margin-top: 40px; font-size: 10.5pt; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.8; }
-  .toc-page { break-before: page; padding: 72px 64px; }
+  .toc-page { break-before: page; }
   .toc-page h2 { font-size: 1.6rem; margin-bottom: 32px; }
   .toc-page ul { list-style: none; margin: 0; padding: 0; }
   .toc-page li {
     padding: 10px 0; border-bottom: 1px solid var(--surface);
     font-size: 12pt;
   }
-  .toc-page a { display: flex; align-items: baseline; gap: 16px; text-decoration: none; color: inherit; }
+  .toc-page a { display: flex; align-items: baseline; gap: 16px; text-decoration: none; color: var(--accent); }
   .toc-number { font-family: var(--font-heading); color: var(--accent); font-weight: 700; width: 2.2em; }
-  .toc-title { color: var(--text); }
+  .toc-title { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; }
   .chapter-body a { color: var(--accent); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; }
-  .chapter { break-before: page; padding: 64px 64px 40px; }
+  .chapter { break-before: page; }
   .chapter-kicker { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .chapter-number { font-family: var(--font-heading); color: var(--accent); font-size: 14pt; font-weight: 700; }
   .chapter-rule { flex: 1; height: var(--accent-bar); background: var(--accent); border-radius: 4px; max-width: 120px; }
@@ -255,6 +262,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   }
   .chapter-body input[type="checkbox"]:checked { background: var(--accent); }
   .cta-page {
+    page: bleed;
     break-before: page;
     height: 100vh;
     display: flex;

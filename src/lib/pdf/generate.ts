@@ -32,7 +32,12 @@ export async function renderHtmlToPdf(html: string): Promise<Buffer> {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "load" });
     const pdf = await page.pdf({
-      format: "A4",
+      // Page size and per-page margins are controlled entirely by the
+      // template's CSS `@page` rules now (a document-wide margin here
+      // can't give the full-bleed cover/CTA pages 0 margin while content
+      // pages keep real ones, and CSS padding on a multi-page chapter
+      // only applies to its first/last page, not every page it spans).
+      preferCSSPageSize: true,
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: "<span></span>",
@@ -40,7 +45,6 @@ export async function renderHtmlToPdf(html: string): Promise<Buffer> {
         <div style="width:100%; font-size:8pt; color:#999; text-align:center; padding-top:6px;">
           <span class="pageNumber"></span> / <span class="totalPages"></span>
         </div>`,
-      margin: { top: "0mm", bottom: "18mm", left: "0mm", right: "0mm" },
     });
     return Buffer.from(pdf);
   } finally {
