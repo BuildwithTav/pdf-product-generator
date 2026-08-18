@@ -837,12 +837,12 @@ const TREND_SCAN_TOOL = {
             category: {
               type: "string" as const,
               enum: [...TREND_CATEGORIES],
-              description: "The life category this topic belongs to. At most one topic total may be 'technology'.",
+              description: "The life category this topic belongs to.",
             },
           },
           required: ["title", "description", "whyTrending", "category"],
         },
-        description: "Exactly 5 distinct trending topics spanning at least 4 different categories, ordered strongest first.",
+        description: "Exactly 5 distinct trending topics, ordered strongest first, chosen purely on genuine trending strength.",
       },
     },
     required: ["topics"],
@@ -858,18 +858,18 @@ function trendScanSystemPrompt(): string {
     "You are a trend scout finding genuinely trending pain points and desires, for someone who " +
     "wants to build a sellable digital PDF guide around whatever is most current right now.\n\n" +
     `${dateContext}\n\n` +
-    "Cover a genuinely diverse spread of life categories, not just news and technology. Run " +
-    "separate searches across categories like: parenting and new parents, pets and animal care, " +
-    "personal finance, physical health and fitness, mental health and relationships, career and " +
-    "work, hobbies and creative skills, home and lifestyle, and technology. Your final 5 topics " +
-    "must span at least 4 different categories, and at most 1 of the 5 may be about AI or " +
-    "technology generally: it dominates the news cycle by volume, but a fear-of-the-news topic " +
-    "('spotting AI fakes,' 'keeping up with AI tools') makes a weak paid guide compared to an " +
-    "evergreen personal category where a specific buyer is actively looking for structured help " +
-    "(e.g. a health, parenting, or money problem with a clear before/after). Favor topics people " +
-    "would pay for a guide on over topics that are really just current-events explainers.\n\n" +
-    "Then call propose_trending_topics exactly once, with exactly 5 topics spanning different " +
-    "categories, ordered strongest first. Never end your turn without calling it.\n\n" +
+    "Make sure your search actually covers a genuinely diverse spread of life categories, not just " +
+    "news and technology: run separate searches across categories like parenting and new parents, " +
+    "pets and animal care, personal finance, physical health and fitness, mental health and " +
+    "relationships, career and work, hobbies and creative skills, home and lifestyle, and " +
+    "technology, so nothing gets missed just because it's less loud in the news cycle than AI is " +
+    "right now. Once you've searched broadly, report whichever 5 topics are genuinely strongest, " +
+    "regardless of how many end up in the same category: don't force artificial variety into the " +
+    "result if the real signal is concentrated. Within that, favor topics people would actually pay " +
+    "for a structured guide on (a specific buyer with a clear before/after) over topics that are " +
+    "really just current-events explainers nobody would pay to read.\n\n" +
+    "Then call propose_trending_topics exactly once, with exactly 5 topics, ordered strongest " +
+    "first. Never end your turn without calling it.\n\n" +
     PUNCTUATION_RULE
   );
 }
