@@ -545,6 +545,35 @@ Topics/interests they'd enjoy writing about: ${input.interests?.trim() || "not s
 Research the real pain points and desires of people in this space.`;
 }
 
+// Tool schemas aren't strictly enforced server-side (especially with
+// tool_choice left as "auto" so web_search stays available), so Claude's
+// actual propose_research call can omit a field the schema marks required.
+// Never trust it with a blind `as ResearchResult` cast — normalize it into
+// a shape guaranteed to satisfy IdeasSchema downstream, dropping any
+// finding that's missing what it needs rather than letting a malformed
+// entry reach the client and fail validation there.
+function normalizeResearchResult(raw: unknown): ResearchResult {
+  const obj = (raw ?? {}) as { summary?: unknown; findings?: unknown };
+  const summary = typeof obj.summary === "string" ? obj.summary : "";
+  const rawFindings = Array.isArray(obj.findings) ? obj.findings : [];
+  const findings: ResearchFinding[] = rawFindings
+    .filter(
+      (f): f is { painPoint: string; source: string; quote?: unknown; url?: unknown } =>
+        Boolean(f) &&
+        typeof (f as { painPoint?: unknown }).painPoint === "string" &&
+        ((f as { painPoint: string }).painPoint.trim().length > 0) &&
+        typeof (f as { source?: unknown }).source === "string" &&
+        ((f as { source: string }).source.trim().length > 0)
+    )
+    .map((f) => ({
+      painPoint: f.painPoint,
+      source: f.source,
+      quote: typeof f.quote === "string" ? f.quote : undefined,
+      url: typeof f.url === "string" ? f.url : undefined,
+    }));
+  return { summary, findings };
+}
+
 function sanitizeResearchResult(result: ResearchResult): ResearchResult {
   return {
     summary: sanitizeGeneratedText(result.summary),
@@ -644,7 +673,7 @@ export async function runResearch(
     throw new Error("Claude did not return research findings.");
   }
 
-  return sanitizeResearchResult(toolUse.input as ResearchResult);
+  return sanitizeResearchResult(normalizeResearchResult(toolUse.input));
 }
 
 // ---------------------------------------------------------------------------
