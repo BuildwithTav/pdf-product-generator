@@ -868,23 +868,31 @@ function trendScanSystemPrompt(): string {
     "You are a trend scout finding genuinely trending pain points and desires, for someone who " +
     "wants to build a sellable digital PDF guide around whatever is most current right now.\n\n" +
     `${dateContext}\n\n` +
-    "Do NOT start from a fixed list of niches or run one canned search per category (e.g. never " +
-    "search literal phrases like \"parenting trends August 2026\" or \"pet owners struggling this " +
-    "week\" — that produces generic marketing/news pages, not real discussion). Instead, search the " +
-    "way a person would when actually digging through a community: open-ended queries about what " +
-    "people are complaining about, asking for help with, or venting about right now, and follow up " +
-    "on whatever surfaces. Let the topics emerge from what's genuinely being discussed, then classify " +
-    "each one into a category only when you report it, not before you search.\n\n" +
-    "Search specifically on the platforms where real people describe real problems in their own " +
-    "words: run several queries using site:reddit.com, site:quora.com, and Amazon review/question " +
-    "language (e.g. site:amazon.com \"customer questions\" or product-review complaint phrasing), " +
-    "plus general web_search calls for anything trending in the news that people are also reacting " +
-    "to on those platforms. Skip generic blogs, brand sites, and news aggregators as your primary " +
-    "source — they're marketing copy, not genuine pain-point language, and only useful as a secondary " +
-    "signal that something is currently trending.\n\n" +
-    "Once you've searched broadly and organically across enough queries to see real patterns, report " +
-    "whichever 5 topics are genuinely strongest and most repeated across threads/reviews/questions in " +
-    "the past 7 days, regardless of what category they land in or how many share a category: don't " +
+    "IMPORTANT — avoid a known failure mode: when asked to find 'trending pain points,' you tend to " +
+    "default to the same handful of generic seasonal guesses (back-to-school stress, tariffs/prices, " +
+    "general venting, AI-and-jobs anxiety) almost every time, regardless of what's actually happening " +
+    "this week, because those are common associations from training rather than something you " +
+    "verified. Do not let that happen here. Treat those exact topics as ones you must actively " +
+    "distrust and confirm with real, specific evidence before including — never include one just " +
+    "because it feels like a safe seasonal default.\n\n" +
+    "Follow this order, not the reverse:\n" +
+    "1. Start with 2-3 broad, general searches for actual current events and news from the past 7 " +
+    "days (e.g. what happened this week, current news roundups) to find SPECIFIC real stories, " +
+    "releases, price changes, or incidents — not themes you already assumed, but things you can name " +
+    "and cite.\n" +
+    "2. For each specific real thing you find, and separately for a few life areas that rarely make " +
+    "general news (pets, hobbies, relationships, home life, personal finance beyond any one story, " +
+    "physical/mental health), run site:reddit.com and site:quora.com searches asking how real people " +
+    "are specifically reacting to it or dealing with it day to day, plus Amazon review/question " +
+    "language where relevant. Base these queries on what you actually found in step 1 or are actively " +
+    "curious about, never on a stock phrase you'd reach for regardless of the week.\n" +
+    "3. Only after that research, let the 5 topics emerge from what you actually found repeated across " +
+    "threads/reviews/questions, and classify each into a category at that point, not before.\n\n" +
+    "Skip generic blogs, brand sites, and news aggregators as your primary source for the final " +
+    "topics — they're only useful in step 1 to find real events, not as evidence of genuine " +
+    "discussion; the actual pain-point evidence must come from Reddit, Quora, or reviews.\n\n" +
+    "Report whichever 5 topics from that research are genuinely strongest, " +
+    "regardless of what category they land in or how many share a category: don't " +
     "force artificial variety into the result if the real signal is concentrated. Within that, favor " +
     "topics people would actually pay for a structured guide on (a specific buyer with a clear " +
     "before/after) over topics that are really just current-events explainers nobody would pay to " +
