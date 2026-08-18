@@ -20,6 +20,7 @@ const IdeasSchema = z.object({
     .object({ summary: z.string(), findings: z.array(ResearchFindingSchema).max(20) })
     .optional(),
   openEnded: z.boolean().optional(),
+  openEndedTopic: z.string().trim().min(1).max(2000).optional(),
   skipProfileSave: z.boolean().optional(),
 });
 
