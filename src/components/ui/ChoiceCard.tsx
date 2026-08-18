@@ -16,6 +16,7 @@ interface ChoiceCardProps {
   description: string;
   color: ChoiceColor;
   selected?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 }
 
@@ -26,17 +27,21 @@ export function ChoiceCard({
   description,
   color,
   selected = false,
+  disabled = false,
   onClick,
 }: ChoiceCardProps) {
   const c = COLOR_CLASSES[color];
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={`group relative flex flex-col gap-2 rounded-2xl border p-5 text-left transition-all duration-150 ${
-        selected
-          ? `border-transparent bg-white ring-2 ${c.ring} shadow-md`
-          : "border-app-border bg-white hover:-translate-y-0.5 hover:shadow-md"
+        disabled
+          ? "cursor-not-allowed border-app-border bg-white opacity-50"
+          : selected
+            ? `border-transparent bg-white ring-2 ${c.ring} shadow-md`
+            : "border-app-border bg-white hover:-translate-y-0.5 hover:shadow-md"
       }`}
     >
       <div

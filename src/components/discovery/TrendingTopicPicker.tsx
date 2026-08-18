@@ -19,10 +19,12 @@ const CATEGORY_LABELS: Record<TrendCategory, string> = {
 
 export function TrendingTopicPicker({
   topics,
+  submitting,
   onSelect,
   onBack,
 }: {
   topics: TrendingTopic[];
+  submitting: boolean;
   onSelect: (topic: TrendingTopic) => void;
   onBack: () => void;
 }) {
@@ -34,7 +36,7 @@ export function TrendingTopicPicker({
       </h1>
       <p className="mb-6 text-sm text-app-muted">
         These are the pain points generating the most real discussion this week. Choose one and
-        we&apos;ll research it further and pitch you product ideas.
+        we&apos;ll pitch you product ideas built around it.
       </p>
 
       <div className="grid grid-cols-1 gap-3">
@@ -49,6 +51,7 @@ export function TrendingTopicPicker({
               quote={topic.whyTrending}
               description={topic.description}
               color="sand"
+              disabled={submitting}
               onClick={() => onSelect(topic)}
             />
           </div>
@@ -57,7 +60,8 @@ export function TrendingTopicPicker({
 
       <button
         onClick={onBack}
-        className="mt-4 flex items-center gap-1.5 text-sm text-app-muted transition hover:text-app-ink"
+        disabled={submitting}
+        className="mt-4 flex items-center gap-1.5 text-sm text-app-muted transition hover:text-app-ink disabled:cursor-not-allowed disabled:opacity-50"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>

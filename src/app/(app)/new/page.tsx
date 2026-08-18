@@ -24,6 +24,8 @@ type Stage =
   | "blueprint";
 
 interface IdeasPayload extends ResearchPayload {
+  openEnded?: boolean;
+  openEndedTopic?: string;
   skipProfileSave?: boolean;
 }
 
@@ -35,7 +37,6 @@ export default function NewProjectPage() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [researchStatuses, setResearchStatuses] = useState<string[]>([]);
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
-  const [chosenTrendingTopic, setChosenTrendingTopic] = useState<TrendingTopic | null>(null);
   const [lastIdeasPayload, setLastIdeasPayload] = useState<IdeasPayload | null>(null);
   const [ideas, setIdeas] = useState<ProductIdea[]>([]);
   const [ideasVersion, setIdeasVersion] = useState(0);
@@ -136,14 +137,33 @@ export default function NewProjectPage() {
     }
   }
 
-  function selectTrendingTopic(topic: TrendingTopic) {
-    setChosenTrendingTopic(topic);
-    runResearchAndIdeas({
+  async function generateIdeasForTopic(topic: TrendingTopic) {
+    setSubmitting(true);
+    setError("");
+    const payload: IdeasPayload = {
       background: "N/A",
       openEnded: true,
-      openEndedTopic: `${topic.title}: ${topic.description}`,
+      openEndedTopic: `${topic.title}: ${topic.description} (${topic.whyTrending})`,
       skipProfileSave: true,
-    });
+    };
+    setLastIdeasPayload(payload);
+    try {
+      const res = await fetch("/api/ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setIdeas(data.ideas);
+      setIdeasVersion((v) => v + 1);
+      setStage("opportunity");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate ideas.");
+      // Stay on trend_pick — the 5 topics and scroll position aren't lost.
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function adjustIdeas(note: string) {
@@ -305,17 +325,14 @@ export default function NewProjectPage() {
         {stage === "trend_pick" && (
           <TrendingTopicPicker
             topics={trendingTopics}
-            onSelect={selectTrendingTopic}
+            submitting={submitting}
+            onSelect={generateIdeasForTopic}
             onBack={() => setStage("path")}
           />
         )}
 
         {stage === "researching" && (
-          <ResearchProgress
-            statuses={researchStatuses}
-            openEnded={activePath === "trending"}
-            topic={chosenTrendingTopic?.title}
-          />
+          <ResearchProgress statuses={researchStatuses} openEnded={activePath === "trending"} />
         )}
 
         {stage === "opportunity" && ideas.length > 0 && (

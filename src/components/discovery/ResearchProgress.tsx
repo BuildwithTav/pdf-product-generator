@@ -7,11 +7,9 @@ import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 export function ResearchProgress({
   statuses,
   openEnded = false,
-  topic,
 }: {
   statuses: string[];
   openEnded?: boolean;
-  topic?: string;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -19,17 +17,11 @@ export function ResearchProgress({
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [statuses.length]);
 
-  const eyebrow = openEnded && topic ? "Researching your topic" : openEnded ? "Scanning for trending ideas" : "Researching your niche";
-
   return (
     <div className="mx-auto max-w-xl">
-      <EyebrowLabel tone="accent">{eyebrow}</EyebrowLabel>
+      <EyebrowLabel tone="accent">{openEnded ? "Scanning for trending ideas" : "Researching your niche"}</EyebrowLabel>
       <h1 className="mb-2 mt-2 font-display text-3xl font-medium leading-tight text-app-ink">
-        {openEnded && topic ? (
-          <>
-            Looking for <em className="italic text-app-accent">real pain points...</em>
-          </>
-        ) : openEnded ? (
+        {openEnded ? (
           <>
             Looking for <em className="italic text-app-accent">what&apos;s trending...</em>
           </>
@@ -40,11 +32,9 @@ export function ResearchProgress({
         )}
       </h1>
       <p className="mb-6 text-sm text-app-muted">
-        {openEnded && topic
-          ? `We're searching Reddit, Quora, and forums for how people talk about ${topic}, so your ideas are grounded in real language, not guesses.`
-          : openEnded
-            ? "We're scanning Reddit, Quora, and forums across any topic for a pain point that's genuinely trending right now, so your ideas are grounded in real language, not guesses."
-            : "We're searching Reddit, Quora, and forums for how people actually talk about this, so your ideas are grounded in real language, not guesses."}
+        {openEnded
+          ? "We're scanning Reddit, Quora, and forums across any topic for a pain point that's genuinely trending right now, so your ideas are grounded in real language, not guesses."
+          : "We're searching Reddit, Quora, and forums for how people actually talk about this, so your ideas are grounded in real language, not guesses."}
       </p>
 
       <div className="rounded-2xl border border-app-border bg-app-surface p-8">

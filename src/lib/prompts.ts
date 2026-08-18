@@ -627,20 +627,11 @@ function researchSystemPrompt() {
   );
 }
 
+// Only ever called for the background-grounded discover/build paths now —
+// "Surprise me" generates ideas directly from the trend scan's own findings
+// without a second research pass (see generateProductIdeas' openEnded
+// branch), so there's no openEnded case to handle here.
 function researchUserMessage(input: DiscoveryInput): string {
-  if (input.openEnded) {
-    if (input.openEndedTopic) {
-      return (
-        `Research real pain points and desires around this specific trending topic: ${input.openEndedTopic}\n\n` +
-        "Find how real people describe this problem in their own words."
-      );
-    }
-    return (
-      "Find whatever pain point or desire is genuinely trending right now, in any niche or topic, " +
-      "that a beginner could turn into a sellable digital PDF guide or workbook. Prioritize current " +
-      "relevance and real discussion volume over any single niche."
-    );
-  }
   return `What this person told us about themselves:
 
 Background / skills / story: ${input.background}

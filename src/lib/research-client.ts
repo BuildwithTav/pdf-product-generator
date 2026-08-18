@@ -5,8 +5,6 @@ export interface ResearchPayload {
   audienceHint?: string;
   interests?: string;
   roughIdea?: string;
-  openEnded?: boolean;
-  openEndedTopic?: string;
 }
 
 // Shared by streamResearch and streamTrendingTopics — both endpoints stream
