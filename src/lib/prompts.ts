@@ -875,17 +875,16 @@ function trendScanSystemPrompt(): string {
     "verified. Do not let that happen here. Treat those exact topics as ones you must actively " +
     "distrust and confirm with real, specific evidence before including — never include one just " +
     "because it feels like a safe seasonal default.\n\n" +
-    "Follow this order, not the reverse:\n" +
-    "1. Start with 2-3 broad, general searches for actual current events and news from the past 7 " +
-    "days (e.g. what happened this week, current news roundups) to find SPECIFIC real stories, " +
-    "releases, price changes, or incidents — not themes you already assumed, but things you can name " +
-    "and cite.\n" +
-    "2. For each specific real thing you find, and separately for a few life areas that rarely make " +
-    "general news (pets, hobbies, relationships, home life, personal finance beyond any one story, " +
-    "physical/mental health), run site:reddit.com and site:quora.com searches asking how real people " +
-    "are specifically reacting to it or dealing with it day to day, plus Amazon review/question " +
-    "language where relevant. Base these queries on what you actually found in step 1 or are actively " +
-    "curious about, never on a stock phrase you'd reach for regardless of the week.\n" +
+    "You have a budget of at most 4 searches total, so be deliberate, not exhaustive. Follow this " +
+    "order, not the reverse:\n" +
+    "1. Spend 1-2 searches on broad, general current events and news from the past 7 days (e.g. what " +
+    "happened this week, current news roundups) to find a couple of SPECIFIC real stories, releases, " +
+    "price changes, or incidents — not themes you already assumed, but things you can name and cite.\n" +
+    "2. Spend your remaining 2-3 searches on site:reddit.com and site:quora.com queries asking how " +
+    "real people are specifically reacting to what you found, or, if step 1 didn't turn up much, on a " +
+    "life area that rarely makes general news (pets, hobbies, relationships, home life, personal " +
+    "finance, physical/mental health). Base these queries on what you actually found in step 1 or are " +
+    "actively curious about, never on a stock phrase you'd reach for regardless of the week.\n" +
     "3. Only after that research, let the 5 topics emerge from what you actually found repeated across " +
     "threads/reviews/questions, and classify each into a category at that point, not before.\n\n" +
     "Skip generic blogs, brand sites, and news aggregators as your primary source for the final " +
@@ -933,11 +932,12 @@ export async function runTrendScan(
 ): Promise<TrendingTopic[]> {
   const stream = anthropic().messages.stream({
     model: CLAUDE_MODEL,
-    // Generous budget: the model needs room for up to 6 site-targeted
-    // searches plus reasoning about what it found before it can call the
-    // tool. Too tight here means the turn ends mid-search, missing the
-    // tool call entirely and falling into the blind retry below.
-    max_tokens: 6144,
+    // The system prompt caps the model at 4 deliberate searches (not
+    // exhaustive exploration), so this budget only needs to cover that
+    // plus reasoning before the tool call — kept a bit above the bare
+    // minimum so a normal run doesn't clip mid-search into the blind
+    // retry below, without paying for headroom searches can't use anyway.
+    max_tokens: 4096,
     system: trendScanSystemPrompt(),
     messages: [
       {
@@ -947,7 +947,7 @@ export async function runTrendScan(
           "sellable digital PDF guide topics.",
       },
     ],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, TREND_SCAN_TOOL],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }, TREND_SCAN_TOOL],
     // tool_choice intentionally omitted (defaults to "auto"), same reason as runResearch.
   });
 
