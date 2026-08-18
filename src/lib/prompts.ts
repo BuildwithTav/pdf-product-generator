@@ -776,10 +776,25 @@ export async function runResearch(
 // anchor research/ideas generation to (via DiscoveryInput.openEndedTopic).
 // ---------------------------------------------------------------------------
 
+export const TREND_CATEGORIES = [
+  "parenting",
+  "pets",
+  "finance",
+  "health_fitness",
+  "relationships",
+  "career_work",
+  "hobbies",
+  "home_lifestyle",
+  "technology",
+] as const;
+
+export type TrendCategory = (typeof TREND_CATEGORIES)[number];
+
 export interface TrendingTopic {
   title: string;
   description: string;
   whyTrending: string;
+  category: TrendCategory;
 }
 
 export type TrendScanStreamEvent =
@@ -812,10 +827,15 @@ const TREND_SCAN_TOOL = {
               type: "string" as const,
               description: "One sentence on why this is trending right now, e.g. what's driving the recent discussion.",
             },
+            category: {
+              type: "string" as const,
+              enum: [...TREND_CATEGORIES],
+              description: "The life category this topic belongs to. At most one topic total may be 'technology'.",
+            },
           },
-          required: ["title", "description", "whyTrending"],
+          required: ["title", "description", "whyTrending", "category"],
         },
-        description: "Exactly 5 distinct trending topics, ordered strongest first.",
+        description: "Exactly 5 distinct trending topics spanning at least 4 different categories, ordered strongest first.",
       },
     },
     required: ["topics"],
@@ -828,25 +848,33 @@ function trendScanSystemPrompt(): string {
   const dateContext = `Today's date is ${today.toISOString().slice(0, 10)}. Focus on discussion from the past 7 days (since ${sevenDaysAgo.toISOString().slice(0, 10)}).`;
 
   return (
-    "You are a trend scout finding genuinely trending pain points and desires across any topic, for " +
-    "someone who wants to build a sellable digital PDF guide around whatever is most current right " +
-    "now.\n\n" +
+    "You are a trend scout finding genuinely trending pain points and desires, for someone who " +
+    "wants to build a sellable digital PDF guide around whatever is most current right now.\n\n" +
     `${dateContext}\n\n` +
-    "Search first: run 3 to 6 distinct web_search calls across different areas of life (health, " +
-    "money, relationships, work, technology, etc.) so the 5 topics you report are genuinely varied, " +
-    "not 5 versions of the same theme. Use real, recent discussion (Reddit, Quora, forums, news), " +
-    "not evergreen topics. Then call propose_trending_topics exactly once, with exactly 5 topics, " +
-    "ordered strongest first. Never end your turn without calling it.\n\n" +
+    "Cover a genuinely diverse spread of life categories, not just news and technology. Run " +
+    "separate searches across categories like: parenting and new parents, pets and animal care, " +
+    "personal finance, physical health and fitness, mental health and relationships, career and " +
+    "work, hobbies and creative skills, home and lifestyle, and technology. Your final 5 topics " +
+    "must span at least 4 different categories, and at most 1 of the 5 may be about AI or " +
+    "technology generally: it dominates the news cycle by volume, but a fear-of-the-news topic " +
+    "('spotting AI fakes,' 'keeping up with AI tools') makes a weak paid guide compared to an " +
+    "evergreen personal category where a specific buyer is actively looking for structured help " +
+    "(e.g. a health, parenting, or money problem with a clear before/after). Favor topics people " +
+    "would pay for a guide on over topics that are really just current-events explainers.\n\n" +
+    "Then call propose_trending_topics exactly once, with exactly 5 topics spanning different " +
+    "categories, ordered strongest first. Never end your turn without calling it.\n\n" +
     PUNCTUATION_RULE
   );
 }
+
+const TREND_CATEGORY_SET = new Set<string>(TREND_CATEGORIES);
 
 function normalizeTrendingTopics(raw: unknown): TrendingTopic[] {
   const obj = (raw ?? {}) as { topics?: unknown };
   const rawTopics = Array.isArray(obj.topics) ? obj.topics : [];
   return rawTopics
     .filter(
-      (t): t is { title: string; description: string; whyTrending?: unknown } =>
+      (t): t is { title: string; description: string; whyTrending?: unknown; category?: unknown } =>
         Boolean(t) &&
         typeof (t as { title?: unknown }).title === "string" &&
         ((t as { title: string }).title.trim().length > 0) &&
@@ -858,6 +886,9 @@ function normalizeTrendingTopics(raw: unknown): TrendingTopic[] {
       title: sanitizeGeneratedText(t.title),
       description: sanitizeGeneratedText(t.description),
       whyTrending: sanitizeGeneratedText(typeof t.whyTrending === "string" ? t.whyTrending : ""),
+      category: (typeof t.category === "string" && TREND_CATEGORY_SET.has(t.category)
+        ? t.category
+        : "home_lifestyle") as TrendCategory,
     }));
 }
 

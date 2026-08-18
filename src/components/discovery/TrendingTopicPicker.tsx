@@ -3,7 +3,19 @@
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { ChoiceCard } from "@/components/ui/ChoiceCard";
-import type { TrendingTopic } from "@/lib/prompts";
+import type { TrendCategory, TrendingTopic } from "@/lib/prompts";
+
+const CATEGORY_LABELS: Record<TrendCategory, string> = {
+  parenting: "Parenting",
+  pets: "Pets",
+  finance: "Finance",
+  health_fitness: "Health & Fitness",
+  relationships: "Relationships",
+  career_work: "Career & Work",
+  hobbies: "Hobbies",
+  home_lifestyle: "Home & Lifestyle",
+  technology: "Technology",
+};
 
 export function TrendingTopicPicker({
   topics,
@@ -27,15 +39,19 @@ export function TrendingTopicPicker({
 
       <div className="grid grid-cols-1 gap-3">
         {topics.map((topic, i) => (
-          <ChoiceCard
-            key={i}
-            icon={TrendingUp}
-            title={topic.title}
-            quote={topic.whyTrending}
-            description={topic.description}
-            color="sand"
-            onClick={() => onSelect(topic)}
-          />
+          <div key={i}>
+            <div className="mb-1.5 ml-1 text-[10px] font-semibold uppercase tracking-wide text-app-muted">
+              {CATEGORY_LABELS[topic.category]}
+            </div>
+            <ChoiceCard
+              icon={TrendingUp}
+              title={topic.title}
+              quote={topic.whyTrending}
+              description={topic.description}
+              color="sand"
+              onClick={() => onSelect(topic)}
+            />
+          </div>
         ))}
       </div>
 
