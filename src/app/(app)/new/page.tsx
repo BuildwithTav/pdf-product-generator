@@ -272,7 +272,9 @@ export default function NewProjectPage() {
           />
         )}
 
-        {stage === "researching" && <ResearchProgress statuses={researchStatuses} />}
+        {stage === "researching" && (
+          <ResearchProgress statuses={researchStatuses} openEnded={activePath === "trending"} />
+        )}
 
         {stage === "opportunity" && ideas.length > 0 && (
           <OpportunityCard

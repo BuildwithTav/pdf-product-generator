@@ -88,7 +88,7 @@ export async function generateSkeleton(
 ): Promise<SkeletonSectionWithIcon[]> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 2048,
+    max_tokens: 4096,
     system:
       "You are an expert instructional designer and ghostwriter who structures digital products " +
       "(ebooks, guides, workbooks) for beginners with no design or writing skill. You produce clear, " +
@@ -112,8 +112,26 @@ export async function generateSkeleton(
     throw new Error("Claude did not return a skeleton.");
   }
 
-  const input = toolUse.input as { sections: SkeletonSectionWithIcon[] };
-  return input.sections.map((s) => ({
+  // Forced tool_choice still doesn't guarantee schema-perfect output (nor
+  // that generation didn't get cut off mid-JSON at the token limit) — never
+  // trust it with a blind cast straight into .map(). Validate and drop
+  // anything malformed instead of crashing the whole outline step.
+  const rawInput = toolUse.input as { sections?: unknown };
+  const rawSections = Array.isArray(rawInput.sections) ? rawInput.sections : [];
+  const sections = rawSections.filter(
+    (s): s is SkeletonSectionWithIcon =>
+      Boolean(s) &&
+      typeof (s as { title?: unknown }).title === "string" &&
+      ((s as { title: string }).title.trim().length > 0) &&
+      typeof (s as { summary?: unknown }).summary === "string" &&
+      typeof (s as { icon?: unknown }).icon === "string"
+  );
+
+  if (sections.length === 0) {
+    throw new Error("Claude did not return a usable skeleton. Try generating the outline again.");
+  }
+
+  return sections.map((s) => ({
     ...s,
     title: sanitizeGeneratedText(s.title),
     summary: sanitizeGeneratedText(s.summary),
@@ -391,10 +409,31 @@ const IDEAS_TOOL = {
   },
 };
 
+const PRODUCT_IDEA_STRING_FIELDS: (keyof ProductIdea)[] = [
+  "productName",
+  "niche",
+  "audience",
+  "corePromise",
+  "problem",
+  "transformation",
+  "format",
+  "suggestedSize",
+  "rationale",
+  "icon",
+];
+
+function isValidProductIdea(idea: unknown): idea is ProductIdea {
+  if (!idea || typeof idea !== "object") return false;
+  return PRODUCT_IDEA_STRING_FIELDS.every((field) => {
+    const value = (idea as Record<string, unknown>)[field];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+}
+
 async function callIdeasTool(system: string, userContent: string): Promise<ProductIdea[]> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 2048,
+    max_tokens: 4096,
     system,
     messages: [{ role: "user", content: userContent }],
     tools: [IDEAS_TOOL],
@@ -406,8 +445,18 @@ async function callIdeasTool(system: string, userContent: string): Promise<Produ
     throw new Error("Claude did not return product ideas.");
   }
 
-  const parsed = toolUse.input as { ideas: ProductIdea[] };
-  return parsed.ideas.map((idea) => ({
+  // Same lesson as generateSkeleton: forced tool_choice still doesn't
+  // guarantee every "required" field survives, so validate before trusting
+  // any of this rather than crashing the whole ideas step on one bad entry.
+  const rawInput = toolUse.input as { ideas?: unknown };
+  const rawIdeas = Array.isArray(rawInput.ideas) ? rawInput.ideas : [];
+  const validIdeas = rawIdeas.filter(isValidProductIdea);
+
+  if (validIdeas.length === 0) {
+    throw new Error("Claude did not return usable product ideas. Try again.");
+  }
+
+  return validIdeas.map((idea) => ({
     ...idea,
     productName: sanitizeGeneratedText(idea.productName),
     niche: sanitizeGeneratedText(idea.niche),

@@ -4,7 +4,13 @@ import { useEffect, useRef } from "react";
 import { Search } from "lucide-react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 
-export function ResearchProgress({ statuses }: { statuses: string[] }) {
+export function ResearchProgress({
+  statuses,
+  openEnded = false,
+}: {
+  statuses: string[];
+  openEnded?: boolean;
+}) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -13,13 +19,22 @@ export function ResearchProgress({ statuses }: { statuses: string[] }) {
 
   return (
     <div className="mx-auto max-w-xl">
-      <EyebrowLabel tone="accent">Researching your niche</EyebrowLabel>
+      <EyebrowLabel tone="accent">{openEnded ? "Scanning for trending ideas" : "Researching your niche"}</EyebrowLabel>
       <h1 className="mb-2 mt-2 font-display text-3xl font-medium leading-tight text-app-ink">
-        Looking for <em className="italic text-app-accent">real pain points...</em>
+        {openEnded ? (
+          <>
+            Looking for <em className="italic text-app-accent">what&apos;s trending...</em>
+          </>
+        ) : (
+          <>
+            Looking for <em className="italic text-app-accent">real pain points...</em>
+          </>
+        )}
       </h1>
       <p className="mb-6 text-sm text-app-muted">
-        We&apos;re searching Reddit, Quora, and forums for how people actually talk about this, so
-        your ideas are grounded in real language, not guesses.
+        {openEnded
+          ? "We're scanning Reddit, Quora, and forums across any topic for a pain point that's genuinely trending right now, so your ideas are grounded in real language, not guesses."
+          : "We're searching Reddit, Quora, and forums for how people actually talk about this, so your ideas are grounded in real language, not guesses."}
       </p>
 
       <div className="rounded-2xl border border-app-border bg-app-surface p-8">
