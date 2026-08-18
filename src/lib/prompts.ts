@@ -858,16 +858,27 @@ function trendScanSystemPrompt(): string {
     "You are a trend scout finding genuinely trending pain points and desires, for someone who " +
     "wants to build a sellable digital PDF guide around whatever is most current right now.\n\n" +
     `${dateContext}\n\n` +
-    "Make sure your search actually covers a genuinely diverse spread of life categories, not just " +
-    "news and technology: run separate searches across categories like parenting and new parents, " +
-    "pets and animal care, personal finance, physical health and fitness, mental health and " +
-    "relationships, career and work, hobbies and creative skills, home and lifestyle, and " +
-    "technology, so nothing gets missed just because it's less loud in the news cycle than AI is " +
-    "right now. Once you've searched broadly, report whichever 5 topics are genuinely strongest, " +
-    "regardless of how many end up in the same category: don't force artificial variety into the " +
-    "result if the real signal is concentrated. Within that, favor topics people would actually pay " +
-    "for a structured guide on (a specific buyer with a clear before/after) over topics that are " +
-    "really just current-events explainers nobody would pay to read.\n\n" +
+    "Do NOT start from a fixed list of niches or run one canned search per category (e.g. never " +
+    "search literal phrases like \"parenting trends August 2026\" or \"pet owners struggling this " +
+    "week\" — that produces generic marketing/news pages, not real discussion). Instead, search the " +
+    "way a person would when actually digging through a community: open-ended queries about what " +
+    "people are complaining about, asking for help with, or venting about right now, and follow up " +
+    "on whatever surfaces. Let the topics emerge from what's genuinely being discussed, then classify " +
+    "each one into a category only when you report it, not before you search.\n\n" +
+    "Search specifically on the platforms where real people describe real problems in their own " +
+    "words: run several queries using site:reddit.com, site:quora.com, and Amazon review/question " +
+    "language (e.g. site:amazon.com \"customer questions\" or product-review complaint phrasing), " +
+    "plus general web_search calls for anything trending in the news that people are also reacting " +
+    "to on those platforms. Skip generic blogs, brand sites, and news aggregators as your primary " +
+    "source — they're marketing copy, not genuine pain-point language, and only useful as a secondary " +
+    "signal that something is currently trending.\n\n" +
+    "Once you've searched broadly and organically across enough queries to see real patterns, report " +
+    "whichever 5 topics are genuinely strongest and most repeated across threads/reviews/questions in " +
+    "the past 7 days, regardless of what category they land in or how many share a category: don't " +
+    "force artificial variety into the result if the real signal is concentrated. Within that, favor " +
+    "topics people would actually pay for a structured guide on (a specific buyer with a clear " +
+    "before/after) over topics that are really just current-events explainers nobody would pay to " +
+    "read.\n\n" +
     "Then call propose_trending_topics exactly once, with exactly 5 topics, ordered strongest " +
     "first. Never end your turn without calling it.\n\n" +
     PUNCTUATION_RULE

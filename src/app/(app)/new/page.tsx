@@ -286,7 +286,7 @@ export default function NewProjectPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 sm:py-12">
       <div className="w-full">
-        {stage === "path" && <PathSelector onSelect={selectPath} />}
+        {stage === "path" && <PathSelector onSelect={selectPath} error={error} />}
 
         {stage === "fast_track" && (
           <FastTrackWizard

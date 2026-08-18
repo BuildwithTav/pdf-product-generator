@@ -3,7 +3,13 @@ import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { ChoiceCard } from "@/components/ui/ChoiceCard";
 import type { EntryPath } from "@/types/db";
 
-export function PathSelector({ onSelect }: { onSelect: (path: EntryPath) => void }) {
+export function PathSelector({
+  onSelect,
+  error,
+}: {
+  onSelect: (path: EntryPath) => void;
+  error?: string;
+}) {
   return (
     <div className="mx-auto max-w-4xl">
       <EyebrowLabel tone="accent">New product</EyebrowLabel>
@@ -13,6 +19,12 @@ export function PathSelector({ onSelect }: { onSelect: (path: EntryPath) => void
       <p className="mb-8 text-sm text-app-muted">
         Pick where you&apos;re starting from. All four end up in the same place.
       </p>
+
+      {error && (
+        <p className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ChoiceCard
