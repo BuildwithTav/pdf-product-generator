@@ -102,12 +102,21 @@ export async function generateSkeleton(
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
-    system:
-      "You are an expert instructional designer and ghostwriter who structures digital products " +
-      "(ebooks, guides, workbooks) for beginners with no design or writing skill. You produce clear, " +
-      "sellable, well-scoped outlines. Sections should build on each other logically and cover the " +
-      "promise completely without padding or redundancy.\n\n" +
-      PUNCTUATION_RULE,
+    system: [
+      {
+        type: "text" as const,
+        text:
+          "You are an expert instructional designer and ghostwriter who structures digital products " +
+          "(ebooks, guides, workbooks) for beginners with no design or writing skill. You produce clear, " +
+          "sellable, well-scoped outlines. Sections should build on each other logically and cover the " +
+          "promise completely without padding or redundancy.\n\n" +
+          PUNCTUATION_RULE,
+        // This system prompt is identical on every call — caching it means
+        // repeat outline generations reuse it at ~10% of the input cost
+        // instead of paying full price every time.
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
     messages: [
       {
         role: "user",
@@ -189,7 +198,15 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
-    system:
+    system: [
+      {
+        type: "text" as const,
+        // Identical across every chapter of the same project (wordTarget
+        // only depends on section count) — caching it means writing a
+        // whole multi-chapter PDF in one sitting reuses this prefix at
+        // ~10% cost instead of paying full price per chapter.
+        cache_control: { type: "ephemeral" as const },
+        text:
       "You are an expert ghostwriter and workbook designer producing publish-ready content for a digital " +
       "product PDF aimed at complete beginners. The whole product should read as a tight, professional " +
       `20-30 page PDF — aim for roughly ${wordTarget} words for this section, not more. Prioritize ` +
@@ -220,6 +237,8 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
       "- Do not repeat content covered by other sections. Write only the section content, no preamble or " +
       "meta-commentary about what you're doing.\n\n" +
       PUNCTUATION_RULE,
+      },
+    ],
     messages: [
       {
         role: "user",
@@ -285,12 +304,18 @@ export async function generateDesignBrief(brief: ProjectBrief): Promise<DesignBr
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 1024,
-    system:
-      "You are a book cover / brand designer choosing a design direction for a digital product PDF. " +
-      "There is no photography: the design relies entirely on color, typography, a single accent " +
-      "icon, and CSS/SVG shapes. You must pick only from the curated palette, font pairing, layout " +
-      "mood, and icon options given, never invent new ones.\n\n" +
-      PUNCTUATION_RULE,
+    system: [
+      {
+        type: "text" as const,
+        text:
+          "You are a book cover / brand designer choosing a design direction for a digital product PDF. " +
+          "There is no photography: the design relies entirely on color, typography, a single accent " +
+          "icon, and CSS/SVG shapes. You must pick only from the curated palette, font pairing, layout " +
+          "mood, and icon options given, never invent new ones.\n\n" +
+          PUNCTUATION_RULE,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
     messages: [
       {
         role: "user",
@@ -455,7 +480,11 @@ async function callIdeasTool(system: string, userContent: string): Promise<Produ
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
-    system,
+    // Both callers' system prompts are static per-branch (open vs.
+    // topic-anchored) — cached so "Show me alternatives"/"Adjust this
+    // idea" re-calls, which reuse the exact same system text, aren't
+    // billed full price again.
+    system: [{ type: "text" as const, text: system, cache_control: { type: "ephemeral" as const } }],
     messages: [{ role: "user", content: userContent }],
     tools: [IDEAS_TOOL],
     tool_choice: { type: "tool", name: "propose_product_ideas" },
@@ -735,7 +764,12 @@ export async function runResearch(
   const stream = anthropic().messages.stream({
     model: CLAUDE_MODEL,
     max_tokens: 2048,
-    system: researchSystemPrompt(),
+    // Static across every call — caching this matters most here of
+    // anywhere in this file: a multi-search call re-sends its full growing
+    // context (including this system prompt) on every internal search
+    // turn, so an uncached search-heavy call pays full system-prompt price
+    // repeatedly within itself, not just once.
+    system: [{ type: "text" as const, text: researchSystemPrompt(), cache_control: { type: "ephemeral" as const } }],
     messages: [{ role: "user", content: researchUserMessage(input) }],
     tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }, RESEARCH_TOOL],
     // tool_choice intentionally omitted (defaults to "auto") — Claude needs
@@ -765,7 +799,7 @@ export async function runResearch(
     const retry = await anthropic().messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 1024,
-      system: researchSystemPrompt(),
+      system: [{ type: "text" as const, text: researchSystemPrompt(), cache_control: { type: "ephemeral" as const } }],
       messages: [
         {
           role: "user",
@@ -938,7 +972,10 @@ export async function runTrendScan(
     // minimum so a normal run doesn't clip mid-search into the blind
     // retry below, without paying for headroom searches can't use anyway.
     max_tokens: 4096,
-    system: trendScanSystemPrompt(),
+    // Static for the whole day (only the embedded date changes daily) —
+    // same reasoning as runResearch: a multi-search call re-pays this
+    // prefix on every internal search turn if it isn't cached.
+    system: [{ type: "text" as const, text: trendScanSystemPrompt(), cache_control: { type: "ephemeral" as const } }],
     messages: [
       {
         role: "user",
@@ -972,7 +1009,7 @@ export async function runTrendScan(
     const retry = await anthropic().messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 3072,
-      system: trendScanSystemPrompt(),
+      system: [{ type: "text" as const, text: trendScanSystemPrompt(), cache_control: { type: "ephemeral" as const } }],
       messages: [
         {
           role: "user",
@@ -1066,10 +1103,16 @@ export async function generateBlueprint(input: BlueprintInput): Promise<Blueprin
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 1024,
-    system:
-      "You are a digital product strategist finalizing the strategy for a product before it's written. " +
-      "Be concrete and specific to this exact product, never generic.\n\n" +
-      PUNCTUATION_RULE,
+    system: [
+      {
+        type: "text" as const,
+        text:
+          "You are a digital product strategist finalizing the strategy for a product before it's written. " +
+          "Be concrete and specific to this exact product, never generic.\n\n" +
+          PUNCTUATION_RULE,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
     messages: [
       {
         role: "user",
