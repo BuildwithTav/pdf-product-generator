@@ -122,7 +122,10 @@ export async function generateSkeleton(
         role: "user",
         content: `Propose a chapter/section structure for this digital product:\n\n${briefBlock(
           brief
-        )}\n\nIf a section count was requested, use exactly that many sections. Otherwise choose the number that best fits the scope (typically 5-10).`,
+        )}\n\nThis is a short, focused guide (5-7 pages total, clear and to the point, no waffle), not a ` +
+          `long book, so keep the structure tight. If a section count was requested, use exactly that many ` +
+          `sections. Otherwise choose the number that best fits the scope (typically 4-6) — fewer, ` +
+          `substantial sections beat many thin ones.`,
       },
     ],
     tools: [SKELETON_TOOL],
@@ -172,16 +175,18 @@ export interface SectionGenerationContext {
   regenerationNote?: string;
 }
 
-// The whole product should land around 20-30 printed pages. ~450 words is a
-// reasonable estimate for one page of this template's body text once cover
-// and TOC (roughly 2 pages) are accounted for; spread that budget evenly
-// across sections and clamp so very short or very long outlines don't
-// produce absurd per-section targets.
+// The whole product should land around 5-7 printed pages, roughly a quarter
+// of what this app used to target, since a shorter guide focused on only
+// the vital information is more useful to a buyer than a padded one. ~450
+// words is a reasonable estimate for one page of this template's body text
+// once cover and TOC (roughly 2 pages) are accounted for; spread that
+// budget evenly across sections and clamp so very short or very long
+// outlines don't produce absurd per-section targets.
 function targetWordCount(sectionCount: number): number {
-  const contentPages = 24;
+  const contentPages = 6;
   const wordsPerPage = 450;
   const perSection = Math.round((contentPages * wordsPerPage) / Math.max(sectionCount, 1));
-  return Math.min(1100, Math.max(300, perSection));
+  return Math.min(450, Math.max(150, perSection));
 }
 
 export async function generateSectionContent(ctx: SectionGenerationContext): Promise<string> {
@@ -208,10 +213,12 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
         cache_control: { type: "ephemeral" as const },
         text:
       "You are an expert ghostwriter and workbook designer producing publish-ready content for a digital " +
-      "product PDF aimed at complete beginners. The whole product should read as a tight, professional " +
-      `20-30 page PDF — aim for roughly ${wordTarget} words for this section, not more. Prioritize ` +
-      "actionable substance (steps, frameworks, examples) over padding; cut generic filler before you'd " +
-      "cut a concrete example.\n\n" +
+      "product PDF aimed at complete beginners. The whole product should read as a short, tight, " +
+      `professional 5-7 page PDF — aim for roughly ${wordTarget} words for this section, not more. Write ` +
+      "clear, direct information with no waffle: explain what the buyer needs plainly and get straight " +
+      "to it, rather than warming up with scene-setting or restating the obvious before making a point. " +
+      "Prioritize actionable substance (steps, frameworks, examples) over padding; cut generic filler " +
+      "before you'd cut a concrete example.\n\n" +
       "Formatting rules, in clean Markdown:\n" +
       "- Use ## for this section's own heading only (never a top-level book title), and ### for internal " +
       "subheadings if the section has more than one distinct part.\n" +
@@ -410,7 +417,7 @@ const IDEA_PROPERTIES = {
   },
   suggestedSize: {
     type: "string" as const,
-    description: "A short page-count estimate, e.g. '20-30 pages'.",
+    description: "A short page-count estimate, e.g. '5-7 pages'.",
   },
   rationale: {
     type: "string" as const,
@@ -1087,7 +1094,7 @@ const BLUEPRINT_TOOL = {
       },
       recommendedLength: {
         type: "string" as const,
-        description: "A short page-count estimate appropriate for this format and scope, e.g. '25-35 pages'.",
+        description: "A short page-count estimate appropriate for this format and scope, e.g. '5-7 pages'.",
       },
       contentsPreview: {
         type: "array" as const,
