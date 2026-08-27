@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, errorResponse } from "@/lib/api-helpers";
-import { PRODUCT_FORMATS } from "@/lib/design-presets";
+import { PRODUCT_FORMATS, defaultTierForFormat } from "@/lib/design-presets";
 
 const IntakeSchema = z.object({
   productName: z.string().trim().min(1).max(200),
@@ -14,6 +14,7 @@ const IntakeSchema = z.object({
   problem: z.string().trim().max(500).optional(),
   transformation: z.string().trim().max(500).optional(),
   format: z.enum(PRODUCT_FORMATS.map((f) => f.id) as [string, ...string[]]).optional(),
+  lengthTier: z.enum(["quick", "standard", "complete"]).optional(),
 });
 
 export async function GET() {
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       problem: parsed.data.problem || null,
       transformation: parsed.data.transformation || null,
       format: parsed.data.format || null,
+      length_tier: parsed.data.lengthTier ?? defaultTierForFormat(parsed.data.format),
       status: "idea",
     })
     .select("*")

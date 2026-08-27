@@ -34,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       transformation: project.transformation,
       format: project.format,
       purpose: project.purpose,
+      lengthTier: project.length_tier,
     });
 
     const capped = skeleton.slice(0, MAX_SECTIONS);

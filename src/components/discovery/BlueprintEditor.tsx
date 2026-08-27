@@ -3,7 +3,8 @@
 import { RefreshCw, Sparkles } from "lucide-react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Button } from "@/components/ui/Button";
-import { PRODUCT_FORMATS } from "@/lib/design-presets";
+import { LENGTH_TIERS, PRODUCT_FORMATS } from "@/lib/design-presets";
+import type { LengthTier } from "@/types/db";
 
 export interface BlueprintDraft {
   productName: string;
@@ -16,11 +17,11 @@ export interface BlueprintDraft {
   toneReference: string;
   purpose: string;
   ctaNextStep: string;
+  lengthTier: LengthTier;
 }
 
 export function BlueprintEditor({
   draft,
-  recommendedLength,
   contentsPreview,
   regenerating,
   approving,
@@ -30,7 +31,6 @@ export function BlueprintEditor({
   onApprove,
 }: {
   draft: BlueprintDraft;
-  recommendedLength: string;
   contentsPreview: string[];
   regenerating: boolean;
   approving: boolean;
@@ -39,7 +39,7 @@ export function BlueprintEditor({
   onImprove: () => void;
   onApprove: () => void;
 }) {
-  function set<K extends keyof BlueprintDraft>(key: K, value: string) {
+  function set<K extends keyof BlueprintDraft>(key: K, value: BlueprintDraft[K]) {
     onChange({ ...draft, [key]: value });
   }
 
@@ -75,11 +75,37 @@ export function BlueprintEditor({
         <TextField label="Next step / CTA" value={draft.ctaNextStep} onChange={(v) => set("ctaNextStep", v)} full />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-app-border bg-app-surface p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wide text-app-muted">Proposed contents</span>
-          <span className="text-xs text-app-muted">{recommendedLength}</span>
+      <div className="mt-6">
+        <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-app-muted">
+          Product length
+        </span>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {LENGTH_TIERS.map((tier) => {
+            const selected = draft.lengthTier === tier.id;
+            return (
+              <button
+                key={tier.id}
+                type="button"
+                onClick={() => set("lengthTier", tier.id)}
+                className={`rounded-xl border p-3 text-left transition ${
+                  selected
+                    ? "border-app-accent bg-app-accent-soft"
+                    : "border-app-border bg-app-surface hover:border-app-accent/50"
+                }`}
+              >
+                <div className="text-sm font-medium text-app-ink">{tier.name}</div>
+                <div className="text-xs font-medium text-app-accent">{tier.pageRange}</div>
+                <div className="mt-1 text-xs text-app-muted">{tier.description}</div>
+              </button>
+            );
+          })}
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-app-border bg-app-surface p-6">
+        <span className="mb-3 block text-xs font-medium uppercase tracking-wide text-app-muted">
+          Proposed contents
+        </span>
         <ul className="space-y-1.5 text-sm text-app-ink">
           {contentsPreview.map((line, i) => (
             <li key={i} className="flex gap-2">

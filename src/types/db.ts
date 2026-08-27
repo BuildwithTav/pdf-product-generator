@@ -4,6 +4,8 @@ export type SectionStatus = "pending" | "generating" | "generated" | "approved";
 
 export type EntryPath = "discover" | "build" | "fast_track" | "trending";
 
+export type LengthTier = "quick" | "standard" | "complete";
+
 export interface DesignPalette {
   id: string;
   name: string;
@@ -55,6 +57,7 @@ export interface Project {
   purpose: string | null;
   cta_next_step: string | null;
   blueprint_approved: boolean;
+  length_tier: LengthTier;
   created_at: string;
   updated_at: string;
 }

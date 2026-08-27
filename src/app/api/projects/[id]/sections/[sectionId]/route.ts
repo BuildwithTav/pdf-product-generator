@@ -61,6 +61,7 @@ export async function POST(
         transformation: project.transformation,
         format: project.format,
         purpose: project.purpose,
+        lengthTier: project.length_tier,
       },
       fullSkeleton: sectionsToSkeleton(allSections as Section[]),
       section: { title: section.title, summary: section.summary },

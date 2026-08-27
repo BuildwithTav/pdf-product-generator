@@ -54,7 +54,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error) return errorResponse(error);
     return NextResponse.json({
       project: updated,
-      recommendedLength: blueprint.recommendedLength,
       contentsPreview: blueprint.contentsPreview,
       tone: blueprint.tone,
     });
@@ -74,6 +73,7 @@ const PatchSchema = z.object({
   problem: z.string().trim().max(500).optional(),
   transformation: z.string().trim().max(500).optional(),
   format: z.string().trim().max(50).optional(),
+  lengthTier: z.enum(["quick", "standard", "complete"]).optional(),
   blueprintApproved: z.boolean().optional(),
 });
 
@@ -99,6 +99,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (parsed.data.problem !== undefined) update.problem = parsed.data.problem;
   if (parsed.data.transformation !== undefined) update.transformation = parsed.data.transformation;
   if (parsed.data.format !== undefined) update.format = parsed.data.format;
+  if (parsed.data.lengthTier !== undefined) update.length_tier = parsed.data.lengthTier;
   if (parsed.data.blueprintApproved !== undefined) update.blueprint_approved = parsed.data.blueprintApproved;
 
   const { data, error } = await supabase

@@ -1,4 +1,4 @@
-import type { DesignFontPairing, DesignPalette, LayoutMood } from "@/types/db";
+import type { DesignFontPairing, DesignPalette, LayoutMood, LengthTier } from "@/types/db";
 
 // Curated design options. Claude picks an ID from these lists when it
 // generates a design brief; the UI exposes the same lists as a palette
@@ -173,6 +173,71 @@ export const PRODUCT_FORMATS: { id: string; name: string; description: string }[
   { id: "template-pack", name: "Template pack", description: "Ready-to-use templates with light instructional framing." },
   { id: "mini-ebook", name: "Mini ebook", description: "Narrative-driven, a bit longer, more storytelling." },
 ];
+
+// The 3 length options a user can pick on the Blueprint screen, capped at
+// "complete" (30 pages) per product decision: real generation cost and
+// buyer-facing promises both need a hard ceiling, not an open-ended target.
+export const LENGTH_TIERS: {
+  id: LengthTier;
+  name: string;
+  pageRange: string;
+  description: string;
+  contentPages: number;
+  sectionCountGuidance: string;
+  minSectionWords: number;
+  maxSectionWords: number;
+}[] = [
+  {
+    id: "quick",
+    name: "Quick reference",
+    pageRange: "1-4 pages",
+    description: "A tight checklist, cheat sheet, or single-topic quick-start. No padding, just the essentials.",
+    contentPages: 3,
+    sectionCountGuidance: "2-4",
+    minSectionWords: 120,
+    maxSectionWords: 450,
+  },
+  {
+    id: "standard",
+    name: "Focused guide",
+    pageRange: "8-12 pages",
+    description: "A complete guide or workbook, thorough but never padded.",
+    contentPages: 10,
+    sectionCountGuidance: "5-8",
+    minSectionWords: 400,
+    maxSectionWords: 1200,
+  },
+  {
+    id: "complete",
+    name: "Complete workbook",
+    pageRange: "20-30 pages",
+    description: "An in-depth, comprehensive workbook or course covering the topic in full.",
+    contentPages: 25,
+    sectionCountGuidance: "10-16",
+    minSectionWords: 500,
+    maxSectionWords: 1400,
+  },
+];
+
+export function getLengthTier(id: string | null | undefined) {
+  return LENGTH_TIERS.find((t) => t.id === id) ?? LENGTH_TIERS[1];
+}
+
+// Sensible starting tier per format, used only to pre-select a tier when a
+// project is first created — the user can always override it on the
+// Blueprint screen before anything is written.
+export const FORMAT_DEFAULT_TIER: Record<string, LengthTier> = {
+  checklist: "quick",
+  "template-pack": "quick",
+  guide: "standard",
+  playbook: "standard",
+  "mini-ebook": "standard",
+  workbook: "complete",
+};
+
+export function defaultTierForFormat(format: string | null | undefined): LengthTier {
+  return (format && FORMAT_DEFAULT_TIER[format]) || "standard";
+}
 
 export function getPalette(id: string): DesignPalette {
   return PALETTES.find((p) => p.id === id) ?? PALETTES[0];

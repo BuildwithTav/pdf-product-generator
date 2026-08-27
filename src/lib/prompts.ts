@@ -1,9 +1,16 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
-import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES, PRODUCT_FORMATS } from "@/lib/design-presets";
+import {
+  FONT_PAIRINGS,
+  LAYOUT_MOODS,
+  PALETTES,
+  PRODUCT_FORMATS,
+  defaultTierForFormat,
+  getLengthTier,
+} from "@/lib/design-presets";
 import { ICON_IDS } from "@/lib/icons";
 import { sanitizeGeneratedText, sanitizeGeneratedTextArray } from "@/lib/text";
-import type { DesignBrief, Section, SkeletonSectionInput } from "@/types/db";
+import type { DesignBrief, LengthTier, Section, SkeletonSectionInput } from "@/types/db";
 
 // Appended to every generation system prompt. Em dashes are stripped in code
 // as a hard guarantee, but the instruction still matters: it stops Claude
@@ -38,6 +45,7 @@ export interface ProjectBrief {
   transformation?: string | null;
   format?: string | null;
   purpose?: string | null;
+  lengthTier?: LengthTier | null;
 }
 
 function briefBlock(brief: ProjectBrief) {
@@ -99,6 +107,7 @@ const SKELETON_TOOL = {
 export async function generateSkeleton(
   brief: ProjectBrief
 ): Promise<SkeletonSectionWithIcon[]> {
+  const tier = getLengthTier(brief.lengthTier);
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
@@ -122,10 +131,10 @@ export async function generateSkeleton(
         role: "user",
         content: `Propose a chapter/section structure for this digital product:\n\n${briefBlock(
           brief
-        )}\n\nThis is a focused guide, roughly 8-12 pages total (not set in stone, use your judgement if ` +
-          `the topic genuinely needs a bit more or less), clear and to the point rather than padded. If a ` +
-          `section count was requested, use exactly that many sections. Otherwise choose the number that ` +
-          `best fits the scope (typically 5-8) — fewer, substantial sections beat many thin ones.`,
+        )}\n\nThe customer chose a target length of ${tier.pageRange} (${tier.name}): ${tier.description} ` +
+          `Stay clear and to the point rather than padded. If a section count was requested, use exactly ` +
+          `that many sections. Otherwise choose the number that best fits this length (typically ` +
+          `${tier.sectionCountGuidance} sections for this target) — fewer, substantial sections beat many thin ones.`,
       },
     ],
     tools: [SKELETON_TOOL],
@@ -175,18 +184,18 @@ export interface SectionGenerationContext {
   regenerationNote?: string;
 }
 
-// The whole product should land around 8-12 printed pages, clear and to the
-// point rather than padded, but not squeezed down so tight it skips real
-// substance. ~450 words is a reasonable estimate for one page of this
-// template's body text once cover and TOC (roughly 2 pages) are accounted
-// for; spread that budget evenly across sections and clamp so very short or
-// very long outlines don't produce absurd per-section targets, while still
-// leaving real room for a section that genuinely needs more space.
-function targetWordCount(sectionCount: number): number {
-  const contentPages = 10;
+// The whole product should land within the customer's chosen length tier,
+// clear and to the point rather than padded, but not squeezed down so tight
+// it skips real substance. ~450 words is a reasonable estimate for one page
+// of this template's body text once cover and TOC (roughly 2 pages) are
+// accounted for; spread that tier's page budget evenly across sections and
+// clamp to the tier's own bounds so very short or very long outlines don't
+// produce absurd per-section targets, while still leaving real room for a
+// section that genuinely needs more space.
+function targetWordCount(sectionCount: number, tier: ReturnType<typeof getLengthTier>): number {
   const wordsPerPage = 450;
-  const perSection = Math.round((contentPages * wordsPerPage) / Math.max(sectionCount, 1));
-  return Math.min(1200, Math.max(400, perSection));
+  const perSection = Math.round((tier.contentPages * wordsPerPage) / Math.max(sectionCount, 1));
+  return Math.min(tier.maxSectionWords, Math.max(tier.minSectionWords, perSection));
 }
 
 export async function generateSectionContent(ctx: SectionGenerationContext): Promise<string> {
@@ -198,7 +207,8 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
     ? `\n\nThe user regenerated this section with this instruction: "${ctx.regenerationNote}". Follow it closely.`
     : "";
 
-  const wordTarget = targetWordCount(ctx.fullSkeleton.length);
+  const tier = getLengthTier(ctx.brief.lengthTier);
+  const wordTarget = targetWordCount(ctx.fullSkeleton.length, tier);
 
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
@@ -214,7 +224,7 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
         text:
       "You are an expert ghostwriter and workbook designer producing publish-ready content for a digital " +
       "product PDF aimed at complete beginners. The whole product should read as a focused, professional " +
-      `8-12 page PDF — roughly ${wordTarget} words for this section is a good guide, not a hard limit: ` +
+      `${tier.pageRange} PDF — roughly ${wordTarget} words for this section is a good guide, not a hard limit: ` +
       "go a bit longer if this particular section genuinely needs the room, shorter if it doesn't. Write " +
       "clear, direct information with no waffle: explain what the buyer needs plainly and get straight " +
       "to it, rather than warming up with scene-setting or restating the obvious before making a point. " +
@@ -416,13 +426,6 @@ const IDEA_PROPERTIES = {
     enum: PRODUCT_FORMATS.map((f) => f.id),
     description: "Best-fit product format from the given options.",
   },
-  suggestedSize: {
-    type: "string" as const,
-    description:
-      "Always exactly '8-12 pages'. Every product this app generates is a focused 8-12 page guide by " +
-      "fixed design, regardless of format, so never suggest a longer or shorter estimate here even if " +
-      "the chosen format (e.g. a workbook) would typically run longer.",
-  },
   rationale: {
     type: "string" as const,
     description: "One sentence on why this fits what the user told us about themselves.",
@@ -442,7 +445,6 @@ const IDEA_REQUIRED = [
   "problem",
   "transformation",
   "format",
-  "suggestedSize",
   "rationale",
   "icon",
 ];
@@ -466,7 +468,7 @@ const IDEAS_TOOL = {
   },
 };
 
-const PRODUCT_IDEA_STRING_FIELDS: (keyof ProductIdea)[] = [
+const PRODUCT_IDEA_STRING_FIELDS: (keyof Omit<ProductIdea, "suggestedSize">)[] = [
   "productName",
   "niche",
   "audience",
@@ -474,12 +476,11 @@ const PRODUCT_IDEA_STRING_FIELDS: (keyof ProductIdea)[] = [
   "problem",
   "transformation",
   "format",
-  "suggestedSize",
   "rationale",
   "icon",
 ];
 
-function isValidProductIdea(idea: unknown): idea is ProductIdea {
+function isValidProductIdea(idea: unknown): idea is Omit<ProductIdea, "suggestedSize"> {
   if (!idea || typeof idea !== "object") return false;
   return PRODUCT_IDEA_STRING_FIELDS.every((field) => {
     const value = (idea as Record<string, unknown>)[field];
@@ -525,7 +526,11 @@ async function callIdeasTool(system: string, userContent: string): Promise<Produ
     corePromise: sanitizeGeneratedText(idea.corePromise),
     problem: sanitizeGeneratedText(idea.problem),
     transformation: sanitizeGeneratedText(idea.transformation),
-    suggestedSize: sanitizeGeneratedText(idea.suggestedSize),
+    // Computed from the format, not AI-generated — guarantees this always
+    // matches one of the 3 real length tiers instead of Claude inventing an
+    // estimate (e.g. "35-45 pages") disconnected from what actually gets
+    // written. The user can still override the tier on the Blueprint screen.
+    suggestedSize: getLengthTier(defaultTierForFormat(idea.format)).pageRange,
     rationale: sanitizeGeneratedText(idea.rationale),
   }));
 }
@@ -1076,7 +1081,6 @@ export interface Blueprint {
   tone: string;
   purpose: string;
   ctaNextStep: string;
-  recommendedLength: string;
   contentsPreview: string[];
 }
 
@@ -1096,19 +1100,13 @@ const BLUEPRINT_TOOL = {
         type: "string" as const,
         description: "The single next action the reader should take after finishing this product.",
       },
-      recommendedLength: {
-        type: "string" as const,
-        description:
-          "Always exactly '8-12 pages'. Every product this app generates is a fixed 8-12 page focused " +
-          "guide regardless of format or scope, so never suggest a different length here.",
-      },
       contentsPreview: {
         type: "array" as const,
         items: { type: "string" as const },
         description: "4-7 short bullet points previewing what the product will contain, in order.",
       },
     },
-    required: ["subtitle", "tone", "purpose", "ctaNextStep", "recommendedLength", "contentsPreview"],
+    required: ["subtitle", "tone", "purpose", "ctaNextStep", "contentsPreview"],
   },
 };
 
@@ -1154,7 +1152,6 @@ Produce the blueprint.`,
     tone: sanitizeGeneratedText(blueprint.tone),
     purpose: sanitizeGeneratedText(blueprint.purpose),
     ctaNextStep: sanitizeGeneratedText(blueprint.ctaNextStep),
-    recommendedLength: sanitizeGeneratedText(blueprint.recommendedLength),
     contentsPreview: sanitizeGeneratedTextArray(blueprint.contentsPreview),
   };
 }

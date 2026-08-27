@@ -43,7 +43,6 @@ export default function NewProjectPage() {
 
   const [projectId, setProjectId] = useState<string | null>(null);
   const [blueprintDraft, setBlueprintDraft] = useState<BlueprintDraft | null>(null);
-  const [recommendedLength, setRecommendedLength] = useState("");
   const [contentsPreview, setContentsPreview] = useState<string[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -225,7 +224,7 @@ export default function NewProjectPage() {
 
   function applyBlueprintResponse(
     id: string,
-    data: { project: Project; recommendedLength: string; contentsPreview: string[] }
+    data: { project: Project; contentsPreview: string[] }
   ) {
     setProjectId(id);
     setBlueprintDraft({
@@ -239,8 +238,8 @@ export default function NewProjectPage() {
       toneReference: data.project.tone_reference ?? "",
       purpose: data.project.purpose ?? "",
       ctaNextStep: data.project.cta_next_step ?? "",
+      lengthTier: data.project.length_tier ?? "standard",
     });
-    setRecommendedLength(data.recommendedLength);
     setContentsPreview(data.contentsPreview);
     setStage("blueprint");
   }
@@ -363,7 +362,6 @@ export default function NewProjectPage() {
         {stage === "blueprint" && blueprintDraft && (
           <BlueprintEditor
             draft={blueprintDraft}
-            recommendedLength={recommendedLength}
             contentsPreview={contentsPreview}
             regenerating={regenerating}
             approving={approving}
