@@ -418,7 +418,10 @@ const IDEA_PROPERTIES = {
   },
   suggestedSize: {
     type: "string" as const,
-    description: "A short page-count estimate, e.g. '8-12 pages'.",
+    description:
+      "Always exactly '8-12 pages'. Every product this app generates is a focused 8-12 page guide by " +
+      "fixed design, regardless of format, so never suggest a longer or shorter estimate here even if " +
+      "the chosen format (e.g. a workbook) would typically run longer.",
   },
   rationale: {
     type: "string" as const,
@@ -1095,7 +1098,9 @@ const BLUEPRINT_TOOL = {
       },
       recommendedLength: {
         type: "string" as const,
-        description: "A short page-count estimate appropriate for this format and scope, e.g. '8-12 pages'.",
+        description:
+          "Always exactly '8-12 pages'. Every product this app generates is a fixed 8-12 page focused " +
+          "guide regardless of format or scope, so never suggest a different length here.",
       },
       contentsPreview: {
         type: "array" as const,
