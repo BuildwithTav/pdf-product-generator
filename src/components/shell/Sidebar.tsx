@@ -36,8 +36,10 @@ export function Sidebar() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Sparkles className="h-4 w-4 text-app-accent" />
-        <span className="font-display text-sm font-medium text-app-ink">PDF Generator</span>
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-app-accent" />
+          <span className="font-display text-sm font-medium text-app-ink">PDF Generator</span>
+        </Link>
       </div>
 
       {mobileOpen && (
@@ -54,8 +56,14 @@ export function Sidebar() {
         }`}
       >
         <div className="flex items-center gap-2 px-5 py-5">
-          <Sparkles className="h-5 w-5 text-app-accent" />
-          <span className="font-display text-base font-medium text-app-ink">PDF Generator</span>
+          <Link
+            href="/dashboard"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="h-5 w-5 text-app-accent" />
+            <span className="font-display text-base font-medium text-app-ink">PDF Generator</span>
+          </Link>
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
