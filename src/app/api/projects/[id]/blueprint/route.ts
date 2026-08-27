@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, requirePaidProject, errorResponse } from "@/lib/api-helpers";
+import { requireUser, requirePaidProject, checkTeaserRateLimit, errorResponse } from "@/lib/api-helpers";
 import { generateBlueprint } from "@/lib/prompts";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +25,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (isRegeneration) {
     const paidCheck = await requirePaidProject(supabase, id);
     if (!paidCheck.ok) return paidCheck.response;
+  } else {
+    // The free initial call still costs a real Claude call, and both
+    // project creation and this route are reachable directly (not only
+    // through /api/ideas), so this needs its own rate limit rather than
+    // relying on the ideas route's cap to cover it indirectly.
+    const rateLimit = await checkTeaserRateLimit(supabase, request);
+    if (!rateLimit.ok) return rateLimit.response;
   }
 
   try {
