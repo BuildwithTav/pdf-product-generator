@@ -3,7 +3,7 @@
 import { RefreshCw, Sparkles } from "lucide-react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Button } from "@/components/ui/Button";
-import { LENGTH_TIERS, PRODUCT_FORMATS } from "@/lib/design-presets";
+import { LENGTH_TIERS, PRODUCT_FORMATS, defaultTierForFormat } from "@/lib/design-presets";
 import type { LengthTier } from "@/types/db";
 
 export interface BlueprintDraft {
@@ -82,6 +82,7 @@ export function BlueprintEditor({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {LENGTH_TIERS.map((tier) => {
             const selected = draft.lengthTier === tier.id;
+            const recommended = defaultTierForFormat(draft.format) === tier.id;
             return (
               <button
                 key={tier.id}
@@ -93,7 +94,14 @@ export function BlueprintEditor({
                     : "border-app-border bg-app-surface hover:border-app-accent/50"
                 }`}
               >
-                <div className="text-sm font-medium text-app-ink">{tier.name}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-app-ink">{tier.name}</span>
+                  {recommended && (
+                    <span className="rounded-full bg-app-mint-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-app-ink">
+                      Recommended
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs font-medium text-app-accent">{tier.pageRange}</div>
                 <div className="mt-1 text-xs text-app-muted">{tier.description}</div>
               </button>
