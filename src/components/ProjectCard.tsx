@@ -43,7 +43,7 @@ export function ProjectCard({ project }: { project: Project }) {
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="rounded-md p-1.5 text-app-muted opacity-0 transition hover:bg-app-coral-soft hover:text-app-coral group-hover:opacity-100 disabled:opacity-50"
+          className="rounded-md p-2 text-app-muted opacity-60 transition hover:bg-app-coral-soft hover:text-app-coral hover:opacity-100 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100"
           title="Delete"
         >
           <Trash2 className="h-3.5 w-3.5" />
