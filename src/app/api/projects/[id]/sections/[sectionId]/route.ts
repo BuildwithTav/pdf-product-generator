@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { requireUser, requirePaidProject, errorResponse } from "@/lib/api-helpers";
 import { generateSectionContent, sectionsToSkeleton } from "@/lib/prompts";
 import { MAX_REGENERATIONS_PER_SECTION } from "@/lib/anthropic";
 import type { Section } from "@/types/db";
@@ -16,6 +16,9 @@ export async function POST(
   const { id, sectionId } = await params;
   const { supabase, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
+
+  const paidCheck = await requirePaidProject(supabase, id);
+  if (!paidCheck.ok) return paidCheck.response;
 
   const body = await request.json().catch(() => ({}));
   const parsed = GenerateSchema.safeParse(body);

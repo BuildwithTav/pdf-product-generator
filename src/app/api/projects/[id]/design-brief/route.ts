@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { requireUser, requirePaidProject, errorResponse } from "@/lib/api-helpers";
 import { generateDesignBrief } from "@/lib/prompts";
 import { FONT_PAIRINGS, LAYOUT_MOODS, PALETTES } from "@/lib/design-presets";
 import { ICON_IDS } from "@/lib/icons";
@@ -9,6 +9,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { supabase, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
+
+  const paidCheck = await requirePaidProject(supabase, id);
+  if (!paidCheck.ok) return paidCheck.response;
 
   const { data: project, error: projectError } = await supabase
     .from("projects")

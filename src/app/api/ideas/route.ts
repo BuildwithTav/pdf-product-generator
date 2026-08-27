@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { requireUser, checkTeaserRateLimit, errorResponse } from "@/lib/api-helpers";
 import { generateProductIdeas } from "@/lib/prompts";
 
 const ResearchFindingSchema = z.object({
@@ -27,6 +27,9 @@ const IdeasSchema = z.object({
 export async function POST(request: Request) {
   const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
+
+  const rateLimit = await checkTeaserRateLimit(supabase, request);
+  if (!rateLimit.ok) return rateLimit.response;
 
   const body = await request.json();
   const parsed = IdeasSchema.safeParse(body);

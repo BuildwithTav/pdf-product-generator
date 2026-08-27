@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/api-helpers";
+import { requireUser, checkTeaserRateLimit } from "@/lib/api-helpers";
 import { runTrendScan, type TrendingTopic, type TrendScanStreamEvent } from "@/lib/prompts";
 
 export const maxDuration = 300;
@@ -17,7 +17,7 @@ function pickRandomSubset<T>(pool: T[], count: number): T[] {
   return shuffled.slice(0, count);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const { supabase, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
 
@@ -47,6 +47,17 @@ export async function POST() {
           send({ type: "status", message: "Using this week's already-scanned trending topics..." });
           send({ type: "result", result: pickRandomSubset(cachedTopics, SHOWN_COUNT) });
         } else {
+          // Only the cache-miss path actually costs anything, so only it
+          // counts against the free-teaser rate limit — a cache hit above
+          // is already free and shouldn't eat into someone's daily cap.
+          const rateLimit = await checkTeaserRateLimit(supabase, request);
+          if (!rateLimit.ok) {
+            const data = await rateLimit.response.json();
+            send({ type: "error", message: data.error ?? "You've hit today's free limit." });
+            controller.close();
+            return;
+          }
+
           const pool = await runTrendScan(send);
           send({ type: "result", result: pickRandomSubset(pool, SHOWN_COUNT) });
 

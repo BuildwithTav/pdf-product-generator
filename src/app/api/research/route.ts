@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/api-helpers";
+import { requireUser, checkTeaserRateLimit } from "@/lib/api-helpers";
 import { runResearch, type ResearchStreamEvent } from "@/lib/prompts";
 
 export const maxDuration = 300;
@@ -13,8 +13,11 @@ const ResearchSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { unauthorized } = await requireUser();
+  const { supabase, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
+
+  const rateLimit = await checkTeaserRateLimit(supabase, request);
+  if (!rateLimit.ok) return rateLimit.response;
 
   const body = await request.json();
   const parsed = ResearchSchema.safeParse(body);

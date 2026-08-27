@@ -273,9 +273,9 @@ export default function NewProjectPage() {
       });
       if (!patchRes.ok) throw new Error((await patchRes.json()).error);
 
-      const skeletonRes = await fetch(`/api/projects/${projectId}/skeleton`, { method: "POST" });
-      if (!skeletonRes.ok) throw new Error((await skeletonRes.json()).error);
-
+      // Outline generation now happens from the project workspace itself
+      // (OutlineEditor's "Generate outline" button), behind the paywall —
+      // this just hands off to that page once the blueprint is approved.
       router.push(`/project/${projectId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to build the outline.");

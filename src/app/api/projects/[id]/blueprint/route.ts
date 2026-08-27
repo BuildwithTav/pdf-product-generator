@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { requireUser, requirePaidProject, errorResponse } from "@/lib/api-helpers";
 import { generateBlueprint } from "@/lib/prompts";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +15,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .single();
 
   if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+
+  // The first blueprint generation (project still has no blueprint,
+  // status "idea") is part of the free teaser. A second call ("Improve
+  // With AI", once status is already "blueprint") is a paid regeneration —
+  // unlimited free re-rolls was the actual cost-leakage risk, not the
+  // one initial call.
+  const isRegeneration = project.status === "blueprint";
+  if (isRegeneration) {
+    const paidCheck = await requirePaidProject(supabase, id);
+    if (!paidCheck.ok) return paidCheck.response;
+  }
 
   try {
     const blueprint = await generateBlueprint({

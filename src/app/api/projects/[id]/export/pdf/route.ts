@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, errorResponse } from "@/lib/api-helpers";
+import { requireUser, requirePaidProject, errorResponse } from "@/lib/api-helpers";
 import { buildDocumentHtml, type RenderableProject } from "@/lib/pdf/template";
 import { renderHtmlToPdf } from "@/lib/pdf/generate";
 
@@ -9,6 +9,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
+
+  const paidCheck = await requirePaidProject(supabase, id);
+  if (!paidCheck.ok) return paidCheck.response;
 
   const [{ data: project, error: projectError }, { data: sections, error: sectionsError }] =
     await Promise.all([
