@@ -141,6 +141,31 @@ export function LivePreview({
                           {...props}
                         />
                       ),
+                      pre: (props) => (
+                        <pre
+                          style={{
+                            background: palette.surface,
+                            padding: "12px 14px",
+                            borderRadius: 8,
+                            whiteSpace: "pre-wrap",
+                            overflowWrap: "break-word",
+                          }}
+                          {...props}
+                        />
+                      ),
+                      code: (props) => (
+                        <code
+                          style={{
+                            fontFamily: "Menlo, Consolas, monospace",
+                            background: palette.surface,
+                            padding: "0.15em 0.4em",
+                            borderRadius: 4,
+                            fontSize: "0.9em",
+                            overflowWrap: "break-word",
+                          }}
+                          {...props}
+                        />
+                      ),
                     }}
                   >
                     {s.content}

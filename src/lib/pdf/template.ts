@@ -222,9 +222,32 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     width: 34px; height: 34px; border-radius: 9px; background: var(--accent); flex-shrink: 0;
   }
   .chapter h2 { font-size: ${mood.sectionHeadingSize}; margin-bottom: 20px; }
+  /* Safety net for any long unbroken run of text (a code block, a URL, a
+     prompt with no natural spaces to wrap at) so it wraps within the page
+     instead of running off the edge — this was a real bug: nothing here
+     constrained text width at all, so a Markdown code block ran straight
+     off the printable page with no wrapping and no visible cutoff warning. */
+  .chapter-body { overflow-wrap: break-word; word-break: break-word; }
   .chapter-body p { margin: 0 0 1em; orphans: 3; widows: 3; }
   .chapter-body ul, .chapter-body ol { margin: 0 0 1em; padding-left: 1.4em; }
   .chapter-body li { margin-bottom: 0.4em; }
+  .chapter-body code {
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    background: var(--surface);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .chapter-body pre {
+    background: var(--surface);
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin: 0 0 1em;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    break-inside: avoid;
+  }
+  .chapter-body pre code { background: none; padding: 0; }
   .chapter-body blockquote {
     margin: 1.4em 0; padding: 16px 20px; background: var(--surface);
     border-left: var(--accent-bar) solid var(--accent); border-radius: 6px;
