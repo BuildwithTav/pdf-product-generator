@@ -130,6 +130,15 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   @page { size: A4; margin: 24mm 20mm 20mm; }
   /* Full-bleed pages (cover, CTA) opt into zero margin via the "page: bleed" property. */
   @page bleed { size: A4; margin: 0; }
+  /* @page rules only affect actual print/PDF output (Puppeteer defaults
+     page.pdf() to the print media type) — with no width constraint at
+     all otherwise, this same HTML stretches edge-to-edge when opened
+     directly in a browser tab for the full-size preview. This block is
+     screen-only, so the real exported PDF is completely unaffected. */
+  @media screen {
+    html { background: #e2e2e2; }
+    body { max-width: 210mm; margin: 32px auto; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
+  }
   html, body {
     margin: 0;
     padding: 0;
