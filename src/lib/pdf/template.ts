@@ -123,11 +123,15 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     --accent-bar: ${mood.accentBar};
   }
   * { box-sizing: border-box; }
-  /* Real per-page margin for ordinary content pages — unlike CSS padding
-     on a box that spans multiple printed pages (which only applies to its
-     first/last page), an @page margin repeats on every physical page,
-     including a chapter's overflow pages. */
-  @page { size: A4; margin: 24mm 20mm 20mm; }
+  /* Only the bottom margin is reserved at the @page level now (Puppeteer's
+     footer/page-number needs real margin space to draw into). Top/left/
+     right are 0 so the page background can bleed to every physical edge —
+     the actual text inset on those 3 sides is now done via .chapter/
+     .toc-page's own padding + box-decoration-break: clone below, which
+     (unlike plain padding) correctly repeats on every page a section
+     overflows across, not just its first/last page. Verified empirically
+     with a real multi-page Puppeteer render before shipping this. */
+  @page { size: A4; margin: 0 0 20mm 0; }
   /* Full-bleed pages (cover, CTA) opt into zero margin via the "page: bleed" property. */
   @page bleed { size: A4; margin: 0; }
   /* @page rules only affect actual print/PDF output (Puppeteer defaults
@@ -202,7 +206,13 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   .cover h1 { color: #fff; font-size: ${mood.headingSize}; line-height: 1.1; margin-bottom: 14px; }
   .cover .subtitle { font-size: 13pt; opacity: 0.92; max-width: 32em; }
   .cover .author { margin-top: 40px; font-size: 10.5pt; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.8; }
-  .toc-page { break-before: page; }
+  .toc-page {
+    break-before: page;
+    background: var(--background);
+    padding: 24mm 20mm 20mm;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
   .toc-page h2 { font-size: 1.6rem; margin-bottom: 32px; }
   .toc-page ul { list-style: none; margin: 0; padding: 0; }
   .toc-page li {
@@ -213,7 +223,13 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   .toc-number { font-family: var(--font-heading); color: var(--accent); font-weight: 700; width: 2.2em; }
   .toc-title { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; }
   .chapter-body a { color: var(--accent); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; }
-  .chapter { break-before: page; }
+  .chapter {
+    break-before: page;
+    background: var(--background);
+    padding: 24mm 20mm 20mm;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
   .chapter-kicker { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .chapter-number { font-family: var(--font-heading); color: var(--accent); font-size: 14pt; font-weight: 700; }
   .chapter-rule { flex: 1; height: var(--accent-bar); background: var(--accent); border-radius: 4px; max-width: 120px; }
