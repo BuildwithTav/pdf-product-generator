@@ -245,7 +245,11 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     margin: 0 0 1em;
     white-space: pre-wrap;
     overflow-wrap: break-word;
-    break-inside: avoid;
+    /* No break-inside: avoid here on purpose — a long prompt/code block
+       that doesn't fit in the remaining space on a page would otherwise
+       get pushed whole onto the next page, leaving a large blank gap at
+       the bottom of the current one. Letting it split across the page
+       boundary if needed is the better trade-off for a block this long. */
   }
   .chapter-body pre code { background: none; padding: 0; }
   .chapter-body blockquote {
