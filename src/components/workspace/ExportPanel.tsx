@@ -52,8 +52,9 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
         Ready to <em className="italic text-app-accent">ship it</em>
       </h2>
       <p className="mb-5 text-sm text-app-muted">
-        Both outputs are generated from the same content: the formatted PDF for selling, the
-        Markdown file for editing further in Canva, Docs, or Word.
+        The PDF is ready to sell as-is. The manuscript (Markdown, as a download or copied to your
+        clipboard) is the same content in plain text, great for pasting straight into Canva,
+        Google Docs, Notion, or any other custom template you want to design it in yourself.
       </p>
 
       {!canExport && (
@@ -83,35 +84,48 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
         </a>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        <Button
-          variant="primary"
-          onClick={exportPdf}
-          disabled={!canExport || exporting}
-          icon={<FileDown className="h-4 w-4" />}
-        >
-          {exporting ? "Rendering PDF…" : "Export formatted PDF"}
-        </Button>
+      <div className="flex flex-wrap gap-5">
+        <div>
+          <Button
+            variant="primary"
+            onClick={exportPdf}
+            disabled={!canExport || exporting}
+            icon={<FileDown className="h-4 w-4" />}
+          >
+            {exporting ? "Rendering PDF…" : "Export formatted PDF"}
+          </Button>
+          <p className="mt-1.5 max-w-[220px] text-xs text-app-muted">Ready to sell as-is, no editing needed.</p>
+        </div>
 
-        <a
-          href={canExport ? `/api/projects/${project.id}/export/markdown` : undefined}
-          aria-disabled={!canExport}
-          className={`inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent ${
-            !canExport ? "pointer-events-none opacity-50" : ""
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          Download Markdown (.md)
-        </a>
+        <div>
+          <a
+            href={canExport ? `/api/projects/${project.id}/export/markdown` : undefined}
+            aria-disabled={!canExport}
+            className={`inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent ${
+              !canExport ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Download Markdown (.md)
+          </a>
+          <p className="mt-1.5 max-w-[220px] text-xs text-app-muted">
+            Great for dropping into your own Canva, Notion, or Word template.
+          </p>
+        </div>
 
-        <button
-          onClick={copyManuscript}
-          disabled={!canExport}
-          className="inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent disabled:pointer-events-none disabled:opacity-50"
-        >
-          {copied ? <Check className="h-4 w-4 text-app-mint" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Copied!" : "Copy full manuscript"}
-        </button>
+        <div>
+          <button
+            onClick={copyManuscript}
+            disabled={!canExport}
+            className="inline-flex items-center gap-2 rounded-full border border-app-border px-5 py-2.5 text-sm font-medium text-app-ink transition hover:border-app-accent hover:text-app-accent disabled:pointer-events-none disabled:opacity-50"
+          >
+            {copied ? <Check className="h-4 w-4 text-app-mint" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied!" : "Copy full manuscript"}
+          </button>
+          <p className="mt-1.5 max-w-[220px] text-xs text-app-muted">
+            Same as the download, but goes straight to your clipboard to paste in.
+          </p>
+        </div>
       </div>
 
       {pdfUrl && (
