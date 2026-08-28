@@ -235,13 +235,20 @@ export async function generateSectionContent(ctx: SectionGenerationContext): Pro
       "subheadings if the section has more than one distinct part.\n" +
       "- Wrap 1-3 key takeaways per section in a blockquote (> ) as a callout/tip box.\n" +
       "- Whenever the content is a tracker, comparison, scoring rubric, or anything with rows and columns, " +
-      "use a real Markdown table (| col | col |) — never fake columns with plain text or dashes.\n" +
+      "use a real Markdown table — never fake columns with plain text or dashes. A table MUST be written " +
+      "with every row on its own line, exactly like this real example (copy this structure precisely, " +
+      "never put more than one row on the same line):\n" +
+      "| Question | Your Answer |\n" +
+      "| --- | --- |\n" +
+      "| First question here | |\n" +
+      "| Second question here | |\n" +
       "- Whenever the content is a checklist, a daily/weekly tracker, or any step meant to be checked off, " +
-      "use Markdown task list syntax (- [ ] item) — never plain bullet text for something meant to be " +
-      "checked off by hand.\n" +
-      "- For reflection prompts or fill-in-the-blank exercises, use a two-column table with the prompt in " +
-      "the left column and the right column left blank (a single non-breaking space) so it renders as a " +
-      "clean printable box to write in — never use underscores or blank lines for this.\n" +
+      "use Markdown task list syntax (- [ ] item), each item on its own line — never plain bullet text for " +
+      "something meant to be checked off by hand.\n" +
+      "- For reflection prompts or fill-in-the-blank exercises, use the same one-row-per-line two-column " +
+      "table format shown above, prompt in the left column, right column left completely empty (do not " +
+      "type anything at all in that cell, not even a space or quote marks) so it renders as a clean " +
+      "printable box to write in — never use underscores or blank lines for this.\n" +
       "- If this section includes a self-scored quiz, rubric, or assessment with distinct result " +
       "categories, follow the scoring table with a short 'Your path from here' note that routes each " +
       "category to specific chapters by name from the outline below (e.g. which chapters to read in full " +

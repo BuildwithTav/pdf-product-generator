@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Download, FileDown, FileText } from "lucide-react";
+import { Check, Copy, Download, Eye, FileDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Callout } from "@/components/ui/Callout";
@@ -71,6 +71,17 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
       </div>
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+      {canExport && (
+        <a
+          href={`/api/projects/${project.id}/preview`}
+          target="_blank"
+          rel="noreferrer"
+          className="mb-4 flex w-fit items-center gap-2 rounded-full border border-app-accent/40 px-5 py-2.5 text-sm font-medium text-app-accent transition hover:bg-app-accent-soft"
+        >
+          <Eye className="h-4 w-4" /> Preview full-size before exporting
+        </a>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <Button

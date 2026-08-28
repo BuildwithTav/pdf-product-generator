@@ -102,7 +102,15 @@ export function ProjectWorkspace({
           sections={sections}
           hasContent={sections.some((s) => s.content)}
           onGenerated={(next) => setSections(next)}
-          onSaved={(next) => setSections(next)}
+          onSaved={(next) => {
+            // Only auto-advance on the very first save (outline just went
+            // from empty to populated) — a customer coming back later to
+            // tweak a title/order shouldn't get yanked off the outline tab
+            // every time they save.
+            const firstSave = sections.length === 0;
+            setSections(next);
+            if (firstSave) setTab("write");
+          }}
         />
       )}
 

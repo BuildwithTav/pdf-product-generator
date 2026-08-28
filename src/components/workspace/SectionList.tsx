@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Pencil, RefreshCw, Wand2 } from "lucide-react";
+import { Check, CheckCheck, Pencil, RefreshCw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ICON_COMPONENTS, isIconId } from "@/lib/icons";
 import type { Section } from "@/types/db";
@@ -23,8 +23,92 @@ export function SectionList({
   sections: Section[];
   onUpdate: (section: Section) => void;
 }) {
+  const [bulkAction, setBulkAction] = useState<"generate" | "approve" | null>(null);
+  const [bulkProgress, setBulkProgress] = useState(0);
+  const [bulkError, setBulkError] = useState("");
+
+  const pending = sections.filter((s) => !s.content);
+  const unapproved = sections.filter((s) => s.content && s.status !== "approved");
+
+  // Sequential, not parallel — this is a real Claude call per section, and
+  // firing them all at once risks hitting account rate limits and makes
+  // failures harder to isolate. Slower, but predictable and safe.
+  async function generateAll() {
+    setBulkAction("generate");
+    setBulkError("");
+    const targets = sections.filter((s) => !s.content);
+    for (let i = 0; i < targets.length; i++) {
+      setBulkProgress(i + 1);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/sections/${targets[i].id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        onUpdate(data.section);
+      } catch (err) {
+        setBulkError(err instanceof Error ? err.message : "Failed to generate a section.");
+        break;
+      }
+    }
+    setBulkAction(null);
+  }
+
+  async function approveAll() {
+    setBulkAction("approve");
+    setBulkError("");
+    const targets = sections.filter((s) => s.content && s.status !== "approved");
+    for (let i = 0; i < targets.length; i++) {
+      setBulkProgress(i + 1);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/sections/${targets[i].id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "approved" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        onUpdate(data.section);
+      } catch (err) {
+        setBulkError(err instanceof Error ? err.message : "Failed to approve a section.");
+        break;
+      }
+    }
+    setBulkAction(null);
+  }
+
   return (
     <div className="space-y-3">
+      {(pending.length > 0 || unapproved.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-app-border bg-app-surface p-3">
+          {pending.length > 0 && (
+            <Button
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs"
+              onClick={generateAll}
+              disabled={bulkAction !== null}
+              icon={<Wand2 className="h-3.5 w-3.5" />}
+            >
+              {bulkAction === "generate" ? `Generating ${bulkProgress} of ${pending.length}…` : `Generate all (${pending.length})`}
+            </Button>
+          )}
+          {unapproved.length > 0 && (
+            <Button
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs"
+              onClick={approveAll}
+              disabled={bulkAction !== null}
+              icon={<CheckCheck className="h-3.5 w-3.5" />}
+            >
+              {bulkAction === "approve" ? `Approving ${bulkProgress} of ${unapproved.length}…` : `Approve all (${unapproved.length})`}
+            </Button>
+          )}
+          {bulkError && <span className="text-xs text-red-600">{bulkError}</span>}
+        </div>
+      )}
+
       {sections
         .slice()
         .sort((a, b) => a.order_index - b.order_index)
@@ -35,6 +119,7 @@ export function SectionList({
             section={s}
             index={i}
             onUpdate={onUpdate}
+            disabled={bulkAction !== null}
           />
         ))}
     </div>
@@ -46,11 +131,13 @@ function SectionCard({
   section,
   index,
   onUpdate,
+  disabled,
 }: {
   projectId: string;
   section: Section;
   index: number;
   onUpdate: (section: Section) => void;
+  disabled: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -168,7 +255,7 @@ function SectionCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {!hasContent ? (
-          <Button variant="primary" onClick={generate} disabled={busy} className="!px-3 !py-1.5 text-xs" icon={<Wand2 className="h-3.5 w-3.5" />}>
+          <Button variant="primary" onClick={generate} disabled={busy || disabled} className="!px-3 !py-1.5 text-xs" icon={<Wand2 className="h-3.5 w-3.5" />}>
             {busy ? "Writing…" : "Generate"}
           </Button>
         ) : (
@@ -177,7 +264,7 @@ function SectionCard({
               variant="secondary"
               className="!px-3 !py-1.5 text-xs"
               onClick={() => (showInstruction ? generate() : setShowInstruction(true))}
-              disabled={busy || regenLimitReached}
+              disabled={busy || disabled || regenLimitReached}
               title={regenLimitReached ? "Regeneration limit reached for this section" : ""}
               icon={<RefreshCw className="h-3.5 w-3.5" />}
             >
@@ -190,19 +277,20 @@ function SectionCard({
                 setEditing((e) => !e);
                 setDraftContent(section.content ?? "");
               }}
+              disabled={disabled}
               icon={<Pencil className="h-3.5 w-3.5" />}
             >
               {editing ? "Cancel" : "Edit"}
             </Button>
             {editing && (
-              <Button variant="primary" className="!px-3 !py-1.5 text-xs" onClick={saveEdit} disabled={busy}>
+              <Button variant="primary" className="!px-3 !py-1.5 text-xs" onClick={saveEdit} disabled={busy || disabled}>
                 Save
               </Button>
             )}
             {section.status !== "approved" && !editing && (
               <button
                 onClick={approve}
-                disabled={busy}
+                disabled={busy || disabled}
                 className="flex items-center gap-1.5 rounded-full border border-app-mint/40 px-3 py-1.5 text-xs font-medium text-app-mint transition hover:bg-app-mint-soft disabled:opacity-50"
               >
                 <Check className="h-3.5 w-3.5" /> Approve

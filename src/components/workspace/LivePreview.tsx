@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getFontPairing, getPalette } from "@/lib/design-presets";
 import { ICON_COMPONENTS, isIconId } from "@/lib/icons";
 import type { DesignBrief, Project, Section } from "@/types/db";
@@ -114,10 +115,29 @@ export function LivePreview({
                   }
                 >
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
                       blockquote: (props) => (
                         <blockquote
                           style={{ background: palette.surface, borderColor: palette.accent, color: palette.secondary }}
+                          {...props}
+                        />
+                      ),
+                      table: (props) => (
+                        <table
+                          style={{ width: "100%", borderCollapse: "collapse", margin: "1.2em 0", fontSize: "0.92em" }}
+                          {...props}
+                        />
+                      ),
+                      th: (props) => (
+                        <th
+                          style={{ background: palette.primary, color: "#fff", textAlign: "left", padding: "8px 12px", fontWeight: 600 }}
+                          {...props}
+                        />
+                      ),
+                      td: (props) => (
+                        <td
+                          style={{ padding: "8px 12px", borderBottom: `1px solid ${palette.surface}` }}
                           {...props}
                         />
                       ),
