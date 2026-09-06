@@ -104,6 +104,31 @@ const SKELETON_TOOL = {
   },
 };
 
+// Claude occasionally double-encodes a tool's array field, returning it as
+// a JSON *string* (sometimes itself re-wrapped in another {<key>: ...}
+// object) instead of a real nested array -- observed directly in
+// production logs (confirmed on generateSkeleton, reproducible on any
+// topic, not a content-specific quirk). Array.isArray() correctly rejects
+// a string, so every item was silently dropped every time this happened.
+// Recursing through string-encoded and re-wrapped shapes recovers the
+// real array regardless of which form Claude picks. Shared by every
+// tool-call site in this file that expects an array field, since the same
+// failure mode can hit any of them, not just skeletons.
+function coerceArrayField(value: unknown, key: string): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      return coerceArrayField(JSON.parse(value), key);
+    } catch {
+      return [];
+    }
+  }
+  if (value && typeof value === "object" && key in (value as Record<string, unknown>)) {
+    return coerceArrayField((value as Record<string, unknown>)[key], key);
+  }
+  return [];
+}
+
 async function requestSkeleton(brief: ProjectBrief): Promise<SkeletonSectionWithIcon[] | null> {
   const tier = getLengthTier(brief.lengthTier);
   const message = await anthropic().messages.create({
@@ -150,7 +175,7 @@ async function requestSkeleton(brief: ProjectBrief): Promise<SkeletonSectionWith
   // trust it with a blind cast straight into .map(). Validate and drop
   // anything malformed instead of crashing the whole outline step.
   const rawInput = toolUse.input as { sections?: unknown };
-  const rawSections = Array.isArray(rawInput.sections) ? rawInput.sections : [];
+  const rawSections = coerceArrayField(rawInput.sections, "sections");
   const sections = rawSections.filter(
     (s): s is SkeletonSectionWithIcon =>
       Boolean(s) &&
@@ -515,7 +540,7 @@ function isValidProductIdea(idea: unknown): idea is Omit<ProductIdea, "suggested
   });
 }
 
-async function callIdeasTool(system: string, userContent: string): Promise<ProductIdea[]> {
+async function requestIdeas(system: string, userContent: string): Promise<ProductIdea[] | null> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 4096,
@@ -531,18 +556,24 @@ async function callIdeasTool(system: string, userContent: string): Promise<Produ
 
   const toolUse = message.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Claude did not return product ideas.");
+    console.error("generateProductIdeas: no tool_use block", { stopReason: message.stop_reason });
+    return null;
   }
 
   // Same lesson as generateSkeleton: forced tool_choice still doesn't
   // guarantee every "required" field survives, so validate before trusting
   // any of this rather than crashing the whole ideas step on one bad entry.
   const rawInput = toolUse.input as { ideas?: unknown };
-  const rawIdeas = Array.isArray(rawInput.ideas) ? rawInput.ideas : [];
+  const rawIdeas = coerceArrayField(rawInput.ideas, "ideas");
   const validIdeas = rawIdeas.filter(isValidProductIdea);
 
   if (validIdeas.length === 0) {
-    throw new Error("Claude did not return usable product ideas. Try again.");
+    console.error("generateProductIdeas: tool_use produced zero usable ideas", {
+      stopReason: message.stop_reason,
+      rawIdeaCount: rawIdeas.length,
+      rawInput,
+    });
+    return null;
   }
 
   return validIdeas.map((idea) => ({
@@ -560,6 +591,19 @@ async function callIdeasTool(system: string, userContent: string): Promise<Produ
     suggestedSize: getLengthTier(defaultTierForFormat(idea.format)).pageRange,
     rationale: sanitizeGeneratedText(idea.rationale),
   }));
+}
+
+async function callIdeasTool(system: string, userContent: string): Promise<ProductIdea[]> {
+  const first = await requestIdeas(system, userContent);
+  if (first) return first;
+
+  // Same one-retry resilience as generateSkeleton — this is the very first
+  // step every free visitor hits, so a transient empty/malformed tool call
+  // here shouldn't be a hard dead end on the first attempt.
+  const retry = await requestIdeas(system, userContent);
+  if (retry) return retry;
+
+  throw new Error("Claude did not return usable product ideas. Try again.");
 }
 
 export async function generateProductIdeas(input: DiscoveryInput): Promise<ProductIdea[]> {
@@ -735,7 +779,7 @@ Research the real pain points and desires of people in this space.`;
 function normalizeResearchResult(raw: unknown): ResearchResult {
   const obj = (raw ?? {}) as { summary?: unknown; findings?: unknown };
   const summary = typeof obj.summary === "string" ? obj.summary : "";
-  const rawFindings = Array.isArray(obj.findings) ? obj.findings : [];
+  const rawFindings = coerceArrayField(obj.findings, "findings");
   const findings: ResearchFinding[] = rawFindings
     .filter(
       (f): f is { painPoint: string; source: string; quote?: unknown; url?: unknown } =>
@@ -983,7 +1027,7 @@ const TREND_CATEGORY_SET = new Set<string>(TREND_CATEGORIES);
 
 function normalizeTrendingTopics(raw: unknown): TrendingTopic[] {
   const obj = (raw ?? {}) as { topics?: unknown };
-  const rawTopics = Array.isArray(obj.topics) ? obj.topics : [];
+  const rawTopics = coerceArrayField(obj.topics, "topics");
   return rawTopics
     .filter(
       (t): t is { title: string; description: string; whyTrending?: unknown; category?: unknown } =>
@@ -1137,7 +1181,7 @@ const BLUEPRINT_TOOL = {
   },
 };
 
-export async function generateBlueprint(input: BlueprintInput): Promise<Blueprint> {
+async function requestBlueprint(input: BlueprintInput): Promise<Blueprint | null> {
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 1024,
@@ -1169,16 +1213,44 @@ Produce the blueprint.`,
 
   const toolUse = message.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Claude did not return a blueprint.");
+    console.error("generateBlueprint: no tool_use block", { stopReason: message.stop_reason });
+    return null;
   }
 
-  const blueprint = toolUse.input as Blueprint;
+  const rawInput = toolUse.input as Partial<Blueprint>;
+  const contentsPreview = coerceArrayField(rawInput.contentsPreview, "contentsPreview").filter(
+    (item): item is string => typeof item === "string"
+  );
+
+  if (
+    typeof rawInput.subtitle !== "string" ||
+    typeof rawInput.tone !== "string" ||
+    typeof rawInput.purpose !== "string" ||
+    typeof rawInput.ctaNextStep !== "string" ||
+    contentsPreview.length === 0
+  ) {
+    console.error("generateBlueprint: tool_use produced an unusable blueprint", {
+      stopReason: message.stop_reason,
+      rawInput,
+    });
+    return null;
+  }
+
   return {
-    ...blueprint,
-    subtitle: sanitizeGeneratedText(blueprint.subtitle),
-    tone: sanitizeGeneratedText(blueprint.tone),
-    purpose: sanitizeGeneratedText(blueprint.purpose),
-    ctaNextStep: sanitizeGeneratedText(blueprint.ctaNextStep),
-    contentsPreview: sanitizeGeneratedTextArray(blueprint.contentsPreview),
+    subtitle: sanitizeGeneratedText(rawInput.subtitle),
+    tone: sanitizeGeneratedText(rawInput.tone),
+    purpose: sanitizeGeneratedText(rawInput.purpose),
+    ctaNextStep: sanitizeGeneratedText(rawInput.ctaNextStep),
+    contentsPreview: sanitizeGeneratedTextArray(contentsPreview),
   };
+}
+
+export async function generateBlueprint(input: BlueprintInput): Promise<Blueprint> {
+  const first = await requestBlueprint(input);
+  if (first) return first;
+
+  const retry = await requestBlueprint(input);
+  if (retry) return retry;
+
+  throw new Error("Claude did not return a usable blueprint. Try again.");
 }
