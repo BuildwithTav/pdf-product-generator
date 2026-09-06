@@ -13,10 +13,10 @@ const ResearchSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { supabase, unauthorized } = await requireUser();
+  const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
 
-  const rateLimit = await checkTeaserRateLimit(supabase, request);
+  const rateLimit = await checkTeaserRateLimit(supabase, request, user.id);
   if (!rateLimit.ok) return rateLimit.response;
 
   const body = await request.json();

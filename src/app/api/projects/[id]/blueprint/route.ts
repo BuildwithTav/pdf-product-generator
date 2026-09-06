@@ -5,7 +5,7 @@ import { generateBlueprint } from "@/lib/prompts";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, unauthorized } = await requireUser();
+  const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
 
   const { data: project, error: projectError } = await supabase
@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // project creation and this route are reachable directly (not only
       // through /api/ideas), so this needs its own rate limit rather than
       // relying on the ideas route's cap to cover it indirectly.
-      const rateLimit = await checkTeaserRateLimit(supabase, request);
+      const rateLimit = await checkTeaserRateLimit(supabase, request, user.id);
       if (!rateLimit.ok) return rateLimit.response;
     }
   }

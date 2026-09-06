@@ -18,7 +18,7 @@ function pickRandomSubset<T>(pool: T[], count: number): T[] {
 }
 
 export async function POST(request: Request) {
-  const { supabase, unauthorized } = await requireUser();
+  const { supabase, user, unauthorized } = await requireUser();
   if (unauthorized) return unauthorized;
 
   const encoder = new TextEncoder();
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
           // Only the cache-miss path actually costs anything, so only it
           // counts against the free-teaser rate limit — a cache hit above
           // is already free and shouldn't eat into someone's daily cap.
-          const rateLimit = await checkTeaserRateLimit(supabase, request);
+          const rateLimit = await checkTeaserRateLimit(supabase, request, user.id);
           if (!rateLimit.ok) {
             const data = await rateLimit.response.json();
             send({ type: "error", message: data.error ?? "You've hit today's free limit." });
