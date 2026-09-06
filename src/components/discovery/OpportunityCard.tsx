@@ -21,7 +21,7 @@ export function OpportunityCard({
   error: string;
   onBack: () => void;
   onBuild: (idea: ProductIdea) => void;
-  onAdjust: (note: string) => void;
+  onAdjust: (note: string, currentIdea: ProductIdea) => void;
 }) {
   const [index, setIndex] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
@@ -84,7 +84,7 @@ export function OpportunityCard({
           )}
           <Button
             variant="ghost"
-            onClick={() => (adjusting ? onAdjust(note) : setAdjusting(true))}
+            onClick={() => (adjusting ? onAdjust(note, idea) : setAdjusting(true))}
             disabled={submitting || (adjusting && !note.trim())}
             icon={<Wand2 className="h-4 w-4" />}
           >

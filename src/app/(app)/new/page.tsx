@@ -189,7 +189,37 @@ export default function NewProjectPage() {
     }
   }
 
-  async function adjustIdeas(note: string) {
+  // Used when a teaser call fails specifically because the daily limit was
+  // hit while an idea was already on screen (adjusting, or generating
+  // alternatives) -- rather than a dead end, spins up a project from that
+  // idea and offers the same "pay to continue" path as hitting the limit
+  // on "Build this product" itself, skipping the (already-known-blocked)
+  // free blueprint attempt entirely.
+  async function offerPayForIdea(idea: ProductIdea) {
+    try {
+      const createRes = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: idea.productName,
+          niche: idea.niche,
+          audience: idea.audience,
+          corePromise: idea.corePromise,
+          problem: idea.problem,
+          transformation: idea.transformation,
+          format: idea.format,
+          path: activePath,
+        }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error);
+      setPayToUnblockId(createData.project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start checkout.");
+    }
+  }
+
+  async function adjustIdeas(note: string, currentIdea: ProductIdea) {
     if (!lastIdeasPayload) return;
     setSubmitting(true);
     setError("");
@@ -200,7 +230,10 @@ export default function NewProjectPage() {
         body: JSON.stringify({ ...lastIdeasPayload, adjustmentNote: note }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        if (res.status === 429) await offerPayForIdea(currentIdea);
+        throw new Error(data.error);
+      }
       setIdeas(data.ideas);
       setIdeasVersion((v) => v + 1);
     } catch (err) {
@@ -326,18 +359,26 @@ export default function NewProjectPage() {
       <div className="w-full">
         {payToUnblockId && (
           <div className="mx-auto mb-6 flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-app-accent/30 bg-app-accent-soft p-5 text-center sm:max-w-xl">
-            <p className="text-sm text-app-ink">
-              You&apos;ve hit today&apos;s free limit, but you don&apos;t have to wait until tomorrow &mdash; pay
-              $10 now and this product gets written right away.
+            <p className="text-sm font-medium text-app-ink">
+              Generation limit exceeded. Pay $10 to continue and create your full PDF.
             </p>
-            <Button
-              variant="primary"
-              onClick={payToUnblock}
-              disabled={payingToUnblock}
-              icon={<CreditCard className="h-4 w-4" />}
-            >
-              {payingToUnblock ? "Starting checkout…" : "Pay $10 to continue now"}
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button
+                variant="primary"
+                onClick={payToUnblock}
+                disabled={payingToUnblock}
+                icon={<CreditCard className="h-4 w-4" />}
+              >
+                {payingToUnblock ? "Starting checkout…" : "Pay $10 to continue"}
+              </Button>
+              <button
+                onClick={() => setPayToUnblockId(null)}
+                disabled={payingToUnblock}
+                className="text-sm text-app-muted underline-offset-2 transition hover:text-app-ink hover:underline disabled:opacity-50"
+              >
+                Choose a different idea instead
+              </button>
+            </div>
           </div>
         )}
 

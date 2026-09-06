@@ -112,7 +112,7 @@ export async function checkTeaserRateLimit(
     return {
       ok: false as const,
       response: NextResponse.json(
-        { error: "You've hit today's free limit. Try again tomorrow, or pay to continue." },
+        { error: "Generation limit exceeded. Pay $10 to continue and create your full PDF." },
         { status: 429 }
       ),
     };

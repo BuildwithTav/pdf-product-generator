@@ -53,7 +53,7 @@ export async function POST(request: Request) {
           const rateLimit = await checkTeaserRateLimit(supabase, request, user.id);
           if (!rateLimit.ok) {
             const data = await rateLimit.response.json();
-            send({ type: "error", message: data.error ?? "You've hit today's free limit." });
+            send({ type: "error", message: data.error ?? "Generation limit exceeded. Pay $10 to continue." });
             controller.close();
             return;
           }
