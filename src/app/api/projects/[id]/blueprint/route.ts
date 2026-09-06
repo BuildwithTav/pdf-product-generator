@@ -26,12 +26,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const paidCheck = await requirePaidProject(supabase, id);
     if (!paidCheck.ok) return paidCheck.response;
   } else {
-    // The free initial call still costs a real Claude call, and both
-    // project creation and this route are reachable directly (not only
-    // through /api/ideas), so this needs its own rate limit rather than
-    // relying on the ideas route's cap to cover it indirectly.
-    const rateLimit = await checkTeaserRateLimit(supabase, request);
-    if (!rateLimit.ok) return rateLimit.response;
+    // A project that's already paid must never be blocked by the free
+    // teaser cap -- otherwise someone who hit the daily limit and paid
+    // anyway (see the "pay to skip the wait" path on /new) would still
+    // get rejected here despite having paid, with no way to proceed.
+    const paidCheck = await requirePaidProject(supabase, id);
+    if (!paidCheck.ok) {
+      // The free initial call still costs a real Claude call, and both
+      // project creation and this route are reachable directly (not only
+      // through /api/ideas), so this needs its own rate limit rather than
+      // relying on the ideas route's cap to cover it indirectly.
+      const rateLimit = await checkTeaserRateLimit(supabase, request);
+      if (!rateLimit.ok) return rateLimit.response;
+    }
   }
 
   try {

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { PathSelector } from "@/components/discovery/PathSelector";
 import { DiscoveryForm, type DiscoveryAnswers } from "@/components/discovery/DiscoveryForm";
 import { ResearchProgress } from "@/components/discovery/ResearchProgress";
@@ -49,6 +51,28 @@ export default function NewProjectPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [approving, setApproving] = useState(false);
   const [error, setError] = useState("");
+  // Set when the free-teaser cap blocks the *first* blueprint call itself --
+  // without this, someone who hits the daily limit has no way to proceed
+  // today even though they're ready to pay, since payment is normally only
+  // offered after a blueprint exists. Holds the already-created (but
+  // blueprint-less) project id so "pay to continue" can check it out
+  // directly.
+  const [payToUnblockId, setPayToUnblockId] = useState<string | null>(null);
+  const [payingToUnblock, setPayingToUnblock] = useState(false);
+
+  async function payToUnblock() {
+    if (!payToUnblockId) return;
+    setPayingToUnblock(true);
+    try {
+      const res = await fetch(`/api/projects/${payToUnblockId}/checkout`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start checkout.");
+      setPayingToUnblock(false);
+    }
+  }
 
   async function selectPath(path: EntryPath) {
     setError("");
@@ -200,6 +224,9 @@ export default function NewProjectPage() {
   }) {
     setSubmitting(true);
     setError("");
+    setPayToUnblockId(null);
+
+    let project: Project;
     try {
       const createRes = await fetch("/api/projects", {
         method: "POST",
@@ -208,11 +235,23 @@ export default function NewProjectPage() {
       });
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error);
-      const project: Project = createData.project;
+      project = createData.project;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create the project.");
+      setSubmitting(false);
+      return;
+    }
 
+    try {
       const blueprintRes = await fetch(`/api/projects/${project.id}/blueprint`, { method: "POST" });
       const blueprintData = await blueprintRes.json();
-      if (!blueprintRes.ok) throw new Error(blueprintData.error);
+      if (!blueprintRes.ok) {
+        // The project itself was created fine -- only the free blueprint
+        // call hit the daily cap. Offer a real way to pay and continue
+        // right now instead of a dead end until tomorrow.
+        if (blueprintRes.status === 429) setPayToUnblockId(project.id);
+        throw new Error(blueprintData.error);
+      }
 
       applyBlueprintResponse(project.id, blueprintData);
     } catch (err) {
@@ -285,6 +324,23 @@ export default function NewProjectPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 sm:py-12">
       <div className="w-full">
+        {payToUnblockId && (
+          <div className="mx-auto mb-6 flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-app-accent/30 bg-app-accent-soft p-5 text-center sm:max-w-xl">
+            <p className="text-sm text-app-ink">
+              You&apos;ve hit today&apos;s free limit, but you don&apos;t have to wait until tomorrow &mdash; pay
+              $10 now and this product gets written right away.
+            </p>
+            <Button
+              variant="primary"
+              onClick={payToUnblock}
+              disabled={payingToUnblock}
+              icon={<CreditCard className="h-4 w-4" />}
+            >
+              {payingToUnblock ? "Starting checkout…" : "Pay $10 to continue now"}
+            </Button>
+          </div>
+        )}
+
         {stage === "path" && <PathSelector onSelect={selectPath} error={error} />}
 
         {stage === "fast_track" && (
