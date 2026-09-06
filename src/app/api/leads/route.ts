@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
-import { addLeadToSysteme, LEAD_TAG_NAME } from "@/lib/systeme";
+import { addLeadToSysteme, LEAD_TAG_NAMES } from "@/lib/systeme";
 
 const Schema = z.object({
   email: z.string().trim().email(),
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   let synced = false;
   try {
-    await addLeadToSysteme(email, LEAD_TAG_NAME);
+    await addLeadToSysteme(email, LEAD_TAG_NAMES);
     synced = true;
   } catch (err) {
     console.error("Failed to sync lead to Systeme.io:", err);

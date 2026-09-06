@@ -22,10 +22,11 @@ async function systemeFetch(path: string, init: RequestInit = {}): Promise<Respo
 
 // Cached per warm serverless instance only -- a cold start just re-fetches
 // once, which is cheap and correct either way.
-let cachedTagId: number | null = null;
+const tagIdCache = new Map<string, number>();
 
 async function resolveTagId(tagName: string): Promise<number> {
-  if (cachedTagId !== null) return cachedTagId;
+  const cached = tagIdCache.get(tagName);
+  if (cached !== undefined) return cached;
 
   const listRes = await systemeFetch("/tags");
   if (listRes.ok) {
@@ -33,8 +34,8 @@ async function resolveTagId(tagName: string): Promise<number> {
     const items: Array<{ id: number; name: string }> = data.items ?? data ?? [];
     const existing = items.find((t) => t.name === tagName);
     if (existing) {
-      cachedTagId = existing.id;
-      return cachedTagId;
+      tagIdCache.set(tagName, existing.id);
+      return existing.id;
     }
   }
 
@@ -42,21 +43,19 @@ async function resolveTagId(tagName: string): Promise<number> {
     method: "POST",
     body: JSON.stringify({ name: tagName }),
   });
-  if (!createRes.ok) throw new Error(`Failed to create Systeme.io tag (${createRes.status}).`);
+  if (!createRes.ok) throw new Error(`Failed to create Systeme.io tag "${tagName}" (${createRes.status}).`);
   const created = await createRes.json();
   const id: number = created.id;
-  cachedTagId = id;
+  tagIdCache.set(tagName, id);
   return id;
 }
 
 // Creates (or finds, if it already exists) a Systeme.io contact for this
-// email and applies the given tag. Tagging is the trigger for whatever
-// Systeme.io automation sends the actual "how to sell it" breakdown --
+// email and applies every given tag. Tagging is the trigger for whatever
+// Systeme.io automation(s) send the actual breakdown/roadmap emails --
 // this app only needs to get the contact tagged, not know what happens
 // after.
-export async function addLeadToSysteme(email: string, tagName: string): Promise<void> {
-  const tagId = await resolveTagId(tagName);
-
+export async function addLeadToSysteme(email: string, tagNames: string[]): Promise<void> {
   let contactId: number | undefined;
   const createRes = await systemeFetch("/contacts", {
     method: "POST",
@@ -78,13 +77,18 @@ export async function addLeadToSysteme(email: string, tagName: string): Promise<
 
   if (!contactId) throw new Error("Could not resolve a Systeme.io contact id.");
 
-  const tagRes = await systemeFetch(`/contacts/${contactId}/tags`, {
-    method: "POST",
-    body: JSON.stringify({ tagId }),
-  });
-  if (!tagRes.ok && tagRes.status !== 409) {
-    throw new Error(`Failed to tag Systeme.io contact (${tagRes.status}).`);
+  for (const tagName of tagNames) {
+    const tagId = await resolveTagId(tagName);
+    const tagRes = await systemeFetch(`/contacts/${contactId}/tags`, {
+      method: "POST",
+      body: JSON.stringify({ tagId }),
+    });
+    if (!tagRes.ok && tagRes.status !== 409) {
+      throw new Error(`Failed to apply tag "${tagName}" to Systeme.io contact (${tagRes.status}).`);
+    }
   }
 }
 
 export const LEAD_TAG_NAME = process.env.SYSTEME_LEAD_TAG?.trim() || "pdf-generator-lead";
+export const ROADMAP_TAG_NAME = process.env.SYSTEME_ROADMAP_TAG?.trim() || "The No BS Roadmap";
+export const LEAD_TAG_NAMES = [LEAD_TAG_NAME, ROADMAP_TAG_NAME];
