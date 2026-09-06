@@ -40,7 +40,15 @@ async function readNdjsonStream<TEvent extends { type: string }, TResult>(
     buffer = lines.pop() ?? "";
     for (const line of lines) {
       if (!line.trim()) continue;
-      const event = JSON.parse(line) as TEvent & { message?: string };
+      let event: (TEvent & { message?: string }) | null = null;
+      try {
+        event = JSON.parse(line) as TEvent & { message?: string };
+      } catch {
+        // A malformed line (e.g. a proxy/timeout injecting a non-JSON
+        // response mid-stream) shouldn't crash the whole request with a
+        // raw SyntaxError — skip it and keep reading.
+        continue;
+      }
       if (event.type === "status" && typeof event.message === "string") onStatus(event.message);
       else if (event.type === "result") result = extractResult(event);
       else if (event.type === "error") throw new Error(event.message ?? "Request failed.");
