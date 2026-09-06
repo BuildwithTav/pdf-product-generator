@@ -13,17 +13,23 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
+  const [leadConsent, setLeadConsent] = useState(false);
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
 
   async function submitLead() {
-    if (!leadEmail.trim()) return;
+    if (!leadEmail.trim() || !leadConsent) return;
     setLeadSubmitting(true);
     try {
       await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: leadEmail.trim(), projectId: project.id, source: "export_panel" }),
+        body: JSON.stringify({
+          email: leadEmail.trim(),
+          projectId: project.id,
+          source: "export_panel",
+          consent: true,
+        }),
       });
     } finally {
       setLeadSubmitted(true);
@@ -82,6 +88,45 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
               ? "Generate at least one section's content before exporting."
               : "Generate a design brief and at least one section's content before exporting."}
           </Callout>
+        </div>
+      )}
+
+      {canExport && (
+        <div className="mb-6 rounded-2xl border border-app-border bg-app-bg p-5">
+          {leadSubmitted ? (
+            <p className="text-sm text-app-mint">Sent! Check your inbox shortly.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-sm font-medium text-app-ink">
+                Want the full breakdown on how to sell this with an automated system?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="email"
+                  value={leadEmail}
+                  onChange={(e) => setLeadEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="min-w-[220px] flex-1 rounded-full border border-app-border px-4 py-2 text-sm text-app-ink outline-none transition focus:border-app-accent"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={submitLead}
+                  disabled={leadSubmitting || !leadEmail.trim() || !leadConsent}
+                >
+                  {leadSubmitting ? "Sending…" : "Send it to me"}
+                </Button>
+              </div>
+              <label className="mt-3 flex items-start gap-2 text-xs text-app-muted">
+                <input
+                  type="checkbox"
+                  checked={leadConsent}
+                  onChange={(e) => setLeadConsent(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-app-border"
+                />
+                I agree to receive emails from Build With Tav.
+              </label>
+            </>
+          )}
         </div>
       )}
 
@@ -155,32 +200,6 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
         >
           <Download className="h-4 w-4" /> Your PDF is ready, download it
         </a>
-      )}
-
-      {pdfUrl && (
-        <div className="mt-6 rounded-2xl border border-app-border bg-app-bg p-5">
-          {leadSubmitted ? (
-            <p className="text-sm text-app-mint">Sent! Check your inbox shortly.</p>
-          ) : (
-            <>
-              <p className="mb-3 text-sm font-medium text-app-ink">
-                Want the full breakdown on how to sell this with an automated system?
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="email"
-                  value={leadEmail}
-                  onChange={(e) => setLeadEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  className="min-w-[220px] flex-1 rounded-full border border-app-border px-4 py-2 text-sm text-app-ink outline-none transition focus:border-app-accent"
-                />
-                <Button variant="secondary" onClick={submitLead} disabled={leadSubmitting || !leadEmail.trim()}>
-                  {leadSubmitting ? "Sending…" : "Send it to me"}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
       )}
     </div>
   );

@@ -7,6 +7,10 @@ const Schema = z.object({
   email: z.string().trim().email(),
   projectId: z.string().uuid().optional(),
   source: z.string().min(1).max(60),
+  // Required true, not just optional -- the UI only lets this request fire
+  // once the user has checked the consent box themselves, and the server
+  // enforces the same rule rather than trusting the client.
+  consent: z.literal(true),
 });
 
 // Non-blocking lead capture -- never gates anything, and a Systeme.io sync
@@ -17,7 +21,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = Schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid email and confirm consent." }, { status: 400 });
   }
   const { email, projectId, source } = parsed.data;
 
@@ -35,6 +39,7 @@ export async function POST(request: Request) {
     project_id: projectId ?? null,
     source,
     synced_to_systeme: synced,
+    consented: true,
   });
   if (error) console.error("Failed to store lead:", error);
 
