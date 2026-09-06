@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, Menu, Plus, Sparkles, BrainCircuit, X } from "lucide-react";
+import { FileText, Menu, Plus, Sparkles, BrainCircuit, Users, X } from "lucide-react";
 import { useSteps } from "@/components/shell/StepsContext";
+import { COMMUNITY_URL } from "@/lib/promo";
 import type { Project } from "@/types/db";
 
 export function Sidebar() {
@@ -136,6 +137,15 @@ export function Sidebar() {
         </nav>
 
         <div className="border-t border-app-border p-3">
+          <a
+            href={COMMUNITY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-2 flex items-center justify-center gap-2 rounded-full border border-app-border px-3 py-2 text-xs font-medium text-app-ink transition hover:bg-app-surface-hover"
+          >
+            <Users className="h-3.5 w-3.5" />
+            Join the free community
+          </a>
           <div className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-app-muted opacity-60">
             <BrainCircuit className="h-3.5 w-3.5" />
             <span>Brain</span>

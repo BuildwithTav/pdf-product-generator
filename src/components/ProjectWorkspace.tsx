@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Users, X } from "lucide-react";
 import { useRegisterSteps } from "@/components/shell/StepsContext";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { OutlineEditor } from "@/components/workspace/OutlineEditor";
@@ -10,6 +11,7 @@ import { DesignPanel } from "@/components/workspace/DesignPanel";
 import { LivePreview } from "@/components/workspace/LivePreview";
 import { ExportPanel } from "@/components/workspace/ExportPanel";
 import { PaywallCard } from "@/components/workspace/PaywallCard";
+import { COMMUNITY_URL, COMMUNITY_NAME } from "@/lib/promo";
 import type { Project, Section } from "@/types/db";
 
 type Tab = "outline" | "write" | "export";
@@ -38,6 +40,7 @@ export function ProjectWorkspace({
   const [verifying, setVerifying] = useState(
     () => !initialPaid && Boolean(searchParams.get("checkout_session_id"))
   );
+  const [justUnlocked, setJustUnlocked] = useState(false);
 
   // Fast-UX return from Stripe checkout — the webhook is the real source
   // of truth (fires independently of the browser), this just unlocks the
@@ -53,7 +56,10 @@ export function ProjectWorkspace({
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data.paid) setPaid(true);
+        if (data.paid) {
+          setPaid(true);
+          setJustUnlocked(true);
+        }
       })
       .finally(() => {
         setVerifying(false);
@@ -83,7 +89,14 @@ export function ProjectWorkspace({
         {verifying ? (
           <p className="text-sm text-app-muted">Confirming your payment…</p>
         ) : (
-          <PaywallCard projectId={project.id} productName={project.product_name} onUnlocked={() => setPaid(true)} />
+          <PaywallCard
+            projectId={project.id}
+            productName={project.product_name}
+            onUnlocked={() => {
+              setPaid(true);
+              setJustUnlocked(true);
+            }}
+          />
         )}
       </div>
     );
@@ -91,6 +104,32 @@ export function ProjectWorkspace({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
+      {justUnlocked && (
+        <div className="mb-6 flex flex-col items-start gap-3 rounded-2xl border border-app-border bg-app-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-app-ink">
+            You&apos;re in! While that&apos;s generating — come say hi in{" "}
+            <span className="font-medium">{COMMUNITY_NAME}</span>, it&apos;s free to join.
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={COMMUNITY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-app-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-app-accent-hover"
+            >
+              <Users className="h-3.5 w-3.5" /> Join free
+            </a>
+            <button
+              onClick={() => setJustUnlocked(false)}
+              aria-label="Dismiss"
+              className="rounded-lg p-1.5 text-app-muted hover:bg-app-surface-hover"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
         <EyebrowLabel>{project.niche}</EyebrowLabel>
         <h1 className="font-display text-2xl font-medium text-app-ink sm:text-3xl">{project.product_name}</h1>
