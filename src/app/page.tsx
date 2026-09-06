@@ -12,7 +12,8 @@ export default function Home() {
       </div>
       <EyebrowLabel>No account · No design skill required</EyebrowLabel>
       <h1 className="mt-3 max-w-2xl font-display text-3xl font-medium leading-tight text-app-ink sm:text-5xl">
-        Fill in a form. Get a <em className="italic text-app-accent">sellable</em> digital product PDF.
+        Fill in a form. Get a <em className="italic text-app-accent">sellable</em> digital product
+        PDF (eBook).
       </h1>
       <p className="mt-4 max-w-xl text-app-muted">
         Describe your product, review the AI-generated outline, and watch it become a fully
