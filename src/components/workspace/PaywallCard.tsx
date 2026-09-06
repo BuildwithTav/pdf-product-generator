@@ -65,8 +65,11 @@ export function PaywallCard({
         <h2 className="mb-2 mt-2 font-display text-2xl font-medium text-app-ink">
           Generate <em className="italic text-app-accent">{productName}</em>
         </h2>
-        <p className="mb-6 text-sm text-app-muted">
+        <p className="mb-3 text-sm text-app-muted">
           $10 unlocks full writing, unlimited edits, and export for this product.
+        </p>
+        <p className="mb-6 text-xs text-app-accent">
+          Once you export, you&apos;ll see how to actually sell it with an automated system.
         </p>
 
         {error && (

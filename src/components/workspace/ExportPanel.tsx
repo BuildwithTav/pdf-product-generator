@@ -12,6 +12,24 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  async function submitLead() {
+    if (!leadEmail.trim()) return;
+    setLeadSubmitting(true);
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: leadEmail.trim(), projectId: project.id, source: "export_panel" }),
+      });
+    } finally {
+      setLeadSubmitted(true);
+      setLeadSubmitting(false);
+    }
+  }
 
   const writtenCount = sections.filter((s) => s.content).length;
   const canExport = Boolean(project.design_brief) && writtenCount > 0;
@@ -137,6 +155,32 @@ export function ExportPanel({ project, sections }: { project: Project; sections:
         >
           <Download className="h-4 w-4" /> Your PDF is ready, download it
         </a>
+      )}
+
+      {pdfUrl && (
+        <div className="mt-6 rounded-2xl border border-app-border bg-app-bg p-5">
+          {leadSubmitted ? (
+            <p className="text-sm text-app-mint">Sent! Check your inbox shortly.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-sm font-medium text-app-ink">
+                Want the full breakdown on how to sell this with an automated system?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="email"
+                  value={leadEmail}
+                  onChange={(e) => setLeadEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="min-w-[220px] flex-1 rounded-full border border-app-border px-4 py-2 text-sm text-app-ink outline-none transition focus:border-app-accent"
+                />
+                <Button variant="secondary" onClick={submitLead} disabled={leadSubmitting || !leadEmail.trim()}>
+                  {leadSubmitting ? "Sending…" : "Send it to me"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
