@@ -202,6 +202,19 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
     margin-bottom: 32px;
   }
   .cover-content { position: relative; z-index: 1; }
+  .cover-format-tag {
+    display: inline-block;
+    font-size: 9.5pt;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px;
+    padding: 5px 14px;
+    margin-bottom: 16px;
+  }
   .cover-eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11pt; opacity: 0.85; margin-bottom: 18px; }
   .cover h1 { color: #fff; font-size: ${mood.headingSize}; line-height: 1.1; margin-bottom: 14px; }
   .cover .subtitle { font-size: 13pt; opacity: 0.92; max-width: 32em; }
@@ -333,6 +346,7 @@ export function buildDocumentHtml(project: RenderableProject, sections: Section[
   <div class="cover">
     <div class="cover-icon">${coverIconMarkup}</div>
     <div class="cover-content">
+      <div class="cover-format-tag">PDF &middot; eBook</div>
       <div class="cover-eyebrow">${escapeHtml(sanitizeGeneratedText(project.niche))}</div>
       <h1>${escapeHtml(sanitizeGeneratedText(project.product_name))}</h1>
       ${project.subtitle ? `<div class="subtitle">${escapeHtml(sanitizeGeneratedText(project.subtitle))}</div>` : ""}
