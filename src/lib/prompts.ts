@@ -104,9 +104,7 @@ const SKELETON_TOOL = {
   },
 };
 
-export async function generateSkeleton(
-  brief: ProjectBrief
-): Promise<SkeletonSectionWithIcon[]> {
+async function requestSkeleton(brief: ProjectBrief): Promise<SkeletonSectionWithIcon[] | null> {
   const tier = getLengthTier(brief.lengthTier);
   const message = await anthropic().messages.create({
     model: CLAUDE_MODEL,
@@ -143,7 +141,8 @@ export async function generateSkeleton(
 
   const toolUse = message.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Claude did not return a skeleton.");
+    console.error("generateSkeleton: no tool_use block", { stopReason: message.stop_reason });
+    return null;
   }
 
   // Forced tool_choice still doesn't guarantee schema-perfect output (nor
@@ -162,7 +161,12 @@ export async function generateSkeleton(
   );
 
   if (sections.length === 0) {
-    throw new Error("Claude did not return a usable skeleton. Try generating the outline again.");
+    console.error("generateSkeleton: tool_use produced zero usable sections", {
+      stopReason: message.stop_reason,
+      rawSectionCount: rawSections.length,
+      rawInput,
+    });
+    return null;
   }
 
   return sections.map((s) => ({
@@ -170,6 +174,22 @@ export async function generateSkeleton(
     title: sanitizeGeneratedText(s.title),
     summary: sanitizeGeneratedText(s.summary),
   }));
+}
+
+export async function generateSkeleton(
+  brief: ProjectBrief
+): Promise<SkeletonSectionWithIcon[]> {
+  const first = await requestSkeleton(brief);
+  if (first) return first;
+
+  // A single retry covers the (real, observed) case where Claude's forced
+  // tool call comes back empty or malformed on one attempt but succeeds on
+  // the next — same resilience pattern already used for research/trend-scan
+  // tool calls elsewhere in this file, just not previously applied here.
+  const retry = await requestSkeleton(brief);
+  if (retry) return retry;
+
+  throw new Error("Claude did not return a usable skeleton. Try generating the outline again.");
 }
 
 // ---------------------------------------------------------------------------
